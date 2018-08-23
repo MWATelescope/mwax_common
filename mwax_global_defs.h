@@ -2,7 +2,7 @@
  * @file mwax_global_defs.h
  * @author Ian Morrison, Greg Sleap
  * @date 30 Jul 2018
- * @brief This is the code that drives the ring buffers
+ * @brief This is common defines for all mwax C code
  *
  */
 
