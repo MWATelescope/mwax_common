@@ -8,8 +8,12 @@
 
 #pragma once
 
-// MWAX global definitions
-#define SUB_OBSERVATION_LENGTH 8  // seconds
+//
+// Correlator COMMAND keywords
+//
+#define MWAX_COMMAND_CAPTURE "CAPTURE"                      // Normal operation
+#define MWAX_COMMAND_IDLE "IDLE"                            // Do not create/archive FITS files
+#define MWAX_COMMAND_QUIT "QUIT"                            // Finish current task, then exit
 
 //
 // Keywords within the PSRDADA Header
@@ -30,7 +34,7 @@
 #define HEADER_APPLY_DELAYS "APPLY_DELAYS"                  // Does precorrelator apply delays?
 #define HEADER_INT_TIME_MSEC "INT_TIME_MSEC"                // Correlator mode: integrations every x milliseconds
 #define HEADER_FSCRUNCH_FACTOR "FSCRUNCH_FACTOR"            // How many 125 Hz ultra fine channels do we average together
-#define HEADER_TRANSFER_SIZE "TRANSFER_SIZE"                // Number of bytes of data to expect in this observation:
+#define HEADER_TRANSFER_SIZE "TRANSFER_SIZE"                // Number of bytes of data to expect in this subobservation including weights:
                                                             // == baselines * (finechannels+1) * (pols^2) * (real_bytes + imaginary_bytes)
                                                             // ==((NINPUTS_XGPU *(NINPUTS_XGPU+2))/8)*(NFINE_CHAN+1)*(NPOL^2)*(NBIT*2/8)
 #define HEADER_PROJ_ID "PROJ_ID"                            // Project code for this observation
