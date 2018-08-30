@@ -38,7 +38,7 @@
                                                             // == baselines * (finechannels+1) * (pols^2) * (real_bytes + imaginary_bytes)
                                                             // ==((NINPUTS_XGPU *(NINPUTS_XGPU+2))/8)*(NFINE_CHAN+1)*(NPOL^2)*(NBIT*2/8)
 #define HEADER_PROJ_ID "PROJ_ID"                            // Project code for this observation
-#define HEADER_EXPOSURE_SEC "EXPOSURE_SEC"                  // Duration of the observation in seconds (always a factor of 8)
+#define HEADER_EXPOSURE_SECS "EXPOSURE_SECS"                // Duration of the observation in seconds (always a factor of 8)
 #define HEADER_COARSE_CHANNEL "COARSE_CHANNEL"              // Coarse channel number 
 #define HEADER_SECS_PER_SUBOBS "SECS_PER_SUBOBS"            // How many seconds are in a sub observation
 #define HEADER_UNIXTIME "UNIXTIME"                          // Unix time in seconds
