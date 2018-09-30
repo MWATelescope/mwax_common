@@ -148,8 +148,11 @@ __global__ void array_weight_complex_kernel(const float* weights, float* output,
   // fast way - 51,200 blocks
   float weight = weights[threadIdx.x];
   int idx = 2*(threadIdx.x*columns + blockIdx.x);
-  output[idx] = output[idx]*weight;
-  output[idx+1] = output[idx+1]*weight;
+  float temp;
+  temp = output[idx]*weight;
+  output[idx] = temp;
+  temp = output[idx+1]*weight;
+  output[idx+1] = temp;
 
   return;
 }
