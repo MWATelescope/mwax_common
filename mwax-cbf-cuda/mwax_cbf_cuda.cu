@@ -133,19 +133,6 @@ __global__ void array_weight_complex_kernel(const float* weights, float* output,
 {
   // blockIdx.x is column (input freq and time)
   // threadIdx.x is row (input antenna)
-  #if 0 // slow way - one block
-  int idx,i;
-  int idx_offset = threadIdx.x*2*columns;
-  int length = 2*columns;
-  float weight = weights[threadIdx.x];
-  for (i=0; i<length; i+=2)
-  {
-    idx = i + idx_offset;
-    output[idx] = output[idx]*weight;
-    output[idx+1] = output[idx+1]*weight;
-  }
-  #endif
-  // fast way - 51,200 blocks
   float weight = weights[threadIdx.x];
   int idx = 2*(threadIdx.x*columns + blockIdx.x);
   output[idx] = output[idx]*weight;
