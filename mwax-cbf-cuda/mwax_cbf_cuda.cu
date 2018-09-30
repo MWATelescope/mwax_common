@@ -147,7 +147,7 @@ __global__ void array_weight_complex_kernel(const float* weights, float* output,
   #endif
   // fast way - 51,200 blocks
   float weight = weights[threadIdx.x];
-  int idx = threadIdx.x*columns + 2*blockIdx.x;
+  int idx = 2*(threadIdx.x*columns + blockIdx.x);
   output[idx] = output[idx]*weight;
   output[idx+1] = output[idx+1]*weight;
 
@@ -158,10 +158,8 @@ extern "C"
 int mwax_array_weight_complex(float* weights, float* output, unsigned rows, unsigned columns, cudaStream_t stream)
 {
   int nblocks = (int)columns;
-  //int nblocks = 1;
   int nthreads = (int)rows;
-  // call with (2*columns) because processing floats
-  array_weight_complex_kernel<<<nblocks,nthreads,0,stream>>>(weights,output,rows,2*columns);
+  array_weight_complex_kernel<<<nblocks,nthreads,0,stream>>>(weights,output,rows,columns);
 
   return 0;
 }
