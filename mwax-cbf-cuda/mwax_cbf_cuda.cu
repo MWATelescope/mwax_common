@@ -546,7 +546,7 @@ __global__ void xGPU_channel_average_shift_and_scale_kernel(const float* input, 
 }
 
 extern "C"
-int xGPU_channel_average_shift_and_scale(float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned num_channels, unsigned fscrunch_factor, float scale_factor, cudaStream_t stream);
+int xGPU_channel_average_shift_and_scale(float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned num_channels, unsigned fscrunch_factor, float scale_factor, cudaStream_t stream)
 {
   if (num_visibility_samps_per_chan % 128)
   {
