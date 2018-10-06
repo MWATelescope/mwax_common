@@ -499,6 +499,80 @@ int xGPU_channel_average(float* input, float* output, unsigned num_visibility_sa
 
 
 
+// Performs channel summation on xGPU output visibilities as well as shifting the DC channel to the centre output channel
+// and scaling by a specified multiplicative factor that combines time/frequency normalisation and weighting (due to missing data).
+// Also excludes the DC ultrafine channel from the summation of the centre channel.
+__global__ void xGPU_channel_average_shift_and_scale_kernel(const float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned num_output_channels, unsigned fscrunch_factor, float chan0_scale_factor, float remaining_scale_factor)
+{
+  // blockDim threads per block: each thread sums all values (real or imag floats) for one output channel
+  // blockIdx.x is a chunk of visibility columns (total columns = num_visibility_samps_per_chan)
+  // threadIdx.x is index within a block
+  int column_index = blockIdx.x * blockDim.x + threadIdx.x;  // which visibility sample across the row
+  int write_idx = column_index + (num_visibility_samps_per_chan*num_output_channels/2);  // start halfway into output array to centre the DC channel
+  int read_idx = column_index;
+  float tempSum;
+  int j,k;
+  // first output channel is different - we exclude the first (DC) ultrafine channel
+  tempSum = input[read_idx];  // first row of this channel
+  read_idx += num_visibility_samps_per_chan;  // advance to next row
+  for (k=2; k<fscrunch_factor; k++)  // sum remaining rows
+  {
+    tempSum += input[read_idx];  // sum in this row
+    read_idx += num_visibility_samps_per_chan;  // advance to next row
+  }
+  output[write_idx] = tempSum * chan0_scale_factor;  // channel summed - scale and write to this row
+  if (num_output_channels == 1)   // all done so return
+    return;
+
+  // process the remaining output channels
+  for (j=1; j<num_output_channels; j++)
+  {
+    tempSum = input[read_idx];  // first row of this channel
+    read_idx += num_visibility_samps_per_chan;  // advance to next row
+    for (k=1; k<fscrunch_factor; k++)  // sum remaining rows
+    {
+      tempSum += input[read_idx];  // sum in this row
+      read_idx += num_visibility_samps_per_chan;  // advance to next row
+    }
+
+    if (j == (num_output_channels/2))
+      write_idx = column_index;  // wrap back to first output row (most negative frequency channel)
+    else
+      write_idx += num_visibility_samps_per_chan;  // advance to next output row
+
+    output[write_idx] = tempSum * remaining_scale_factor;  // channel summed - scale and write to this row
+  }
+  return;
+}
+
+extern "C"
+int xGPU_channel_average_shift_and_scale(float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned num_channels, unsigned fscrunch_factor, float scale_factor, cudaStream_t stream);
+{
+  if (num_visibility_samps_per_chan % 128)
+  {
+    printf("xGPU_channel_average: ERROR: number of visibility samples (real or imag) per channel should always be divisible by 128\n");
+    return -1;
+  }
+
+  if (num_input_channels % fscrunch_factor)
+  {
+    printf("xGPU_channel_average: ERROR: number of input channels not an integer multiple of averaging factor\n");
+    return -1;
+  }
+
+  int nthreads = 128;  // all blocks will be 128 threads in size
+  int nblocks = (int)num_visibility_samps_per_chan/nthreads;
+  unsigned num_output_channels = num_input_channels/fscrunch_factor;
+  float channel0_scale_factor = scale_factor*(float)fscrunch_factor/((float)fscrunch_factor - 1.0);  // channel 0 is averaging over one fewer ultrafine channels
+
+  // call kernel with input pointer advanced to second row to exclude the first (DC) ultrafine channel
+  xGPU_channel_average_kernel<<<nblocks,nthreads,0,stream>>>((input+num_visibility_samps_per_chan),output,num_visibility_samps_per_chan,num_output_channels,fscrunch_factor,channel0_scale_factor,scale_factor);
+
+  return 0;
+}
+
+
+
 
 __global__ void beamform_summation_kernel(const float* input, float* output, unsigned num_antennas, unsigned num_samples_per_antenna)
 {

@@ -25,6 +25,8 @@ int mwax_detranspose_from_xGPU_and_weight(float* weights, float* input, float* o
 
 int xGPU_channel_average(float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned num_channels, unsigned fscrunch_factor, cudaStream_t stream);
 
+int xGPU_channel_average_shift_and_scale(float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned num_channels, unsigned fscrunch_factor, float scale_factor, cudaStream_t stream);
+
 int mwax_beamform_summation(float* input, float* output, unsigned num_antennas,  unsigned num_samples_per_antenna, cudaStream_t stream);
 
 int mwax_sum_powers_dual_pol (float* input, float* output, unsigned num_antennas, unsigned num_samples_per_antenna, cudaStream_t stream);
