@@ -563,7 +563,11 @@ int xGPU_channel_average_shift_and_scale(float* input, float* output, unsigned n
   int nthreads = 128;  // all blocks will be 128 threads in size
   int nblocks = (int)num_visibility_samps_per_chan/nthreads;
   unsigned num_output_channels = num_input_channels/fscrunch_factor;
-  float channel0_scale_factor = scale_factor*(float)fscrunch_factor/((float)fscrunch_factor - 1.0);  // channel 0 is averaging over one fewer ultrafine channels
+  float channel0_scale_factor;
+  if (fscrunch_factor == 1)
+    channel0_scale_factor = 0.0;  // clear channel 0 when no channel averaging
+  else
+    channel0_scale_factor = scale_factor*(float)fscrunch_factor/((float)fscrunch_factor - 1.0);  // channel 0 is averaging over one fewer ultrafine channels
 
   // call kernel with input pointer advanced to second row to exclude the first (DC) ultrafine channel
   xGPU_channel_average_shift_and_scale_kernel<<<nblocks,nthreads,0,stream>>>((input+num_visibility_samps_per_chan),output,num_visibility_samps_per_chan,num_output_channels,fscrunch_factor,channel0_scale_factor,scale_factor);
