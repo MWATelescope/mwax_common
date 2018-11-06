@@ -415,9 +415,9 @@ __global__ void xGPU_channel_average_kernel(const float* input, float* output, u
 extern "C"
 int xGPU_channel_average(float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned num_input_channels, unsigned fscrunch_factor, cudaStream_t stream)
 {
-  if (num_visibility_samps_per_chan % 128)
+  if (num_visibility_samps_per_chan % 64)
   {
-    printf("xGPU_channel_average: ERROR: number of visibility samples (real or imag) per channel should always be divisible by 128\n");
+    printf("xGPU_channel_average: ERROR: number of visibility samples (real or imag) per channel should always be divisible by 64\n");
     return -1;
   }
 
@@ -427,7 +427,7 @@ int xGPU_channel_average(float* input, float* output, unsigned num_visibility_sa
     return -1;
   }
 
-  int nthreads = 128;  // all blocks will be 128 threads in size
+  int nthreads = 64;  // all blocks will be 64 threads in size
   int nblocks = (int)num_visibility_samps_per_chan/nthreads;
   unsigned num_output_channels = num_input_channels/fscrunch_factor;
 
@@ -548,9 +548,9 @@ __global__ void xGPU_channel_average_shift_and_scale_kernel(const float* input, 
 extern "C"
 int xGPU_channel_average_shift_and_scale(float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned num_input_channels, unsigned fscrunch_factor, float scale_factor, cudaStream_t stream)
 {
-  if (num_visibility_samps_per_chan % 128)
+  if (num_visibility_samps_per_chan % 64)
   {
-    printf("xGPU_channel_average: ERROR: number of visibility samples (real or imag) per channel should always be divisible by 128\n");
+    printf("xGPU_channel_average: ERROR: number of visibility samples (real or imag) per channel should always be divisible by 64\n");
     return -1;
   }
 
@@ -560,7 +560,7 @@ int xGPU_channel_average_shift_and_scale(float* input, float* output, unsigned n
     return -1;
   }
 
-  int nthreads = 128;  // all blocks will be 128 threads in size
+  int nthreads = 64;  // all blocks will be 64 threads in size
   int nblocks = (int)num_visibility_samps_per_chan/nthreads;
   unsigned num_output_channels = num_input_channels/fscrunch_factor;
   float channel0_scale_factor;
