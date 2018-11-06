@@ -39,10 +39,14 @@
                                                             // ==((NINPUTS_XGPU *(NINPUTS_XGPU+2))/8)*(NFINE_CHAN+1)*(NPOL^2)*(NBIT*2/8)
 #define HEADER_PROJ_ID "PROJ_ID"                            // Project code for this observation
 #define HEADER_EXPOSURE_SECS "EXPOSURE_SECS"                // Duration of the observation in seconds (always a factor of 8)
-#define HEADER_COARSE_CHANNEL "COARSE_CHANNEL"              // Coarse channel number 
+#define HEADER_COARSE_CHANNEL "COARSE_CHANNEL"              // Coarse channel number (0..255)
+#define HEADER_CORR_COARSE_CHANNEL "CORR_COARSE_CHANNEL"    // Correlator Coarse channel number (0..23)
 #define HEADER_SECS_PER_SUBOBS "SECS_PER_SUBOBS"            // How many seconds are in a sub observation
 #define HEADER_UNIXTIME "UNIXTIME"                          // Unix time in seconds
 #define HEADER_UNIXTIME_MSEC "UNIXTIME_MSEC"                // Milliseconds portion of Unix time (0-999)
 #define HEADER_FINE_CHAN_WIDTH_HZ "FINE_CHAN_WIDTH_HZ"      // Width of fine channels post correlator (kHz)
 #define HEADER_NFINE_CHAN "NFINE_CHAN"                      // How many fine channels per coarse channel
 #define HEADER_BANDWIDTH_HZ "BANDWIDTH_HZ"                  // Bandwidth of a coarse channel
+#define HEADER_MC_IP "MC_IP"                                // Multicast IP that the data was addressed to 
+#define HEADER_MC_PORT "MC_PORT"                            // Multicast port that the data was addressed to 
+#define HEADER_MC_SRC_IP "MC_SRC_IP"                        // Origin IP of multicast
