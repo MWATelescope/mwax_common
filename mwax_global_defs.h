@@ -49,4 +49,3 @@
 #define HEADER_BANDWIDTH_HZ "BANDWIDTH_HZ"                  // Bandwidth of a coarse channel
 #define HEADER_MC_IP "MC_IP"                                // Multicast IP that the data was addressed to 
 #define HEADER_MC_PORT "MC_PORT"                            // Multicast port that the data was addressed to 
-#define HEADER_MC_SRC_IP "MC_SRC_IP"                        // Origin IP of multicast
