@@ -47,5 +47,6 @@
 #define HEADER_FINE_CHAN_WIDTH_HZ "FINE_CHAN_WIDTH_HZ"      // Width of fine channels post correlator (kHz)
 #define HEADER_NFINE_CHAN "NFINE_CHAN"                      // How many fine channels per coarse channel
 #define HEADER_BANDWIDTH_HZ "BANDWIDTH_HZ"                  // Bandwidth of a coarse channel
-#define HEADER_MC_IP "MC_IP"                                // Multicast IP that the data was addressed to 
-#define HEADER_MC_PORT "MC_PORT"                            // Multicast port that the data was addressed to 
+#define HEADER_SAMPLE_RATE "SAMPLE_RATE"                    // Sampling rate of a coarse channel (different to BW if oversampled)
+#define HEADER_MC_IP "MC_IP"                                // Multicast IP that the data was addressed to
+#define HEADER_MC_PORT "MC_PORT"                            // Multicast port that the data was addressed to
