@@ -236,7 +236,7 @@ __global__ void mwax_lookup_delay_gains_kernel(const int32_t* delays, const cuFl
   // threadIdx.x is row (input antenna)
   #define NUM_DELAYS 2001  // zero delay case and +- 1000 millisamples
   #define MAX_DELAY ((NUM_DELAYS-1)/2)
-  delay_idx = (delays[threadIdx.x] + MAX_DELAY)*fft_length + blockIdx.x;
+  int delay_idx = (delays[threadIdx.x] + MAX_DELAY)*fft_length + blockIdx.x;
   cuFloatComplex delay_gain = delay_lut[delay_idx];
   int gains_idx = (threadIdx.x*fft_length*num_ffts) + blockIdx.x;
   int i;
