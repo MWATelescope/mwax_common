@@ -259,26 +259,35 @@ int mwax_lookup_delay_gains(int32_t* delays, cuFloatComplex* delay_lut, cuFloatC
 
 
 
-__global__ void mwax_lookup_and_apply_delay_gains_kernel(const int32_t* delays, const cuFloatComplex* delay_lut, cuFloatComplex* input, unsigned paths, unsigned fft_length, unsigned num_ffts)
+__global__ void mwax_lookup_and_apply_delay_gains_kernel(const int32_t* delays, const float* delay_lut, float* input, unsigned paths, unsigned fft_length, unsigned num_ffts)
 // applies delay gains to the complex float 2D array of input, using values taken from the delay_lut, indexed with delays
+// floats are used to allow fast complex multiply algorithm
 {
   // blockIdx.x is fft_length (input freqs)
   // threadIdx.x is row (input antenna)
   #define NUM_DELAYS 2001  // zero delay case and +- 1000 millisamples
   #define MAX_DELAY ((NUM_DELAYS-1)/2)
-  int delay_idx = (delays[threadIdx.x] + MAX_DELAY)*fft_length + blockIdx.x;
-  cuFloatComplex delay_gain = delay_lut[delay_idx];
-  int input_idx = (threadIdx.x*fft_length*num_ffts) + blockIdx.x;
+  int delay_idx = 2*((delays[threadIdx.x] + MAX_DELAY)*fft_length + blockIdx.x);
+  float delay_gain_real = delay_lut[delay_idx];
+  float delay_gain_imag = delay_lut[delay_idx+1];
+  int input_idx = 2*((threadIdx.x*fft_length*num_ffts) + blockIdx.x);
+  float input_real = input[input_idx];
+  float input_imag = input[input_idx+1];
+  float temp1 = input_real*(delay_gain_real + delay_gain_imag);  // form intermediate products of fast complex multiply
+  float temp2 = delay_gain_imag*(input_real + input_imag);
+  float temp3 = delay_gain_real*(input_imag - input_real);
+
   int i;
-  for (i=0; i<num_ffts; i++)  // each FFT will use the same delay gain gradient
+  for (i=0; i<(2*num_ffts); i+=2)  // each FFT will use the same delay gain gradient
   {
-    input[input_idx + i*fft_length] = input[input_idx]*delay_gain;
+    input[input_idx + i*fft_length] = temp1 - temp2;
+    input[input_idx + i*fft_length + 1] = temp1 + temp3;
   }
   return;
 }
 
 extern "C"
-int mwax_lookup_and_apply_delay_gains(int32_t* delays, cuFloatComplex* delay_lut, cuFloatComplex* input, unsigned paths, unsigned fft_length, unsigned num_ffts, cudaStream_t stream)
+int mwax_lookup_and_apply_delay_gains(int32_t* delays, float* delay_lut, float* input, unsigned paths, unsigned fft_length, unsigned num_ffts, cudaStream_t stream)
 {
   int nblocks = (int)fft_length;
   int nthreads = (int)paths;
