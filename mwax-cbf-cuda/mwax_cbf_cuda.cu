@@ -259,7 +259,7 @@ int mwax_lookup_delay_gains(int32_t* delays, cuFloatComplex* delay_lut, cuFloatC
 
 
 
-__global__ void mwax_lookup_and_apply_delay_gains_kernel(const int32_t* delays, const cuFloatComplex* delay_lut, cuFloatComplex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts)
+__global__ void mwax_lookup_and_apply_delay_gains_kernel(const int32_t* delays, const cuFloatComplex* delay_lut, cuFloatComplex* input, unsigned paths, unsigned fft_length, unsigned num_ffts)
 // applies delay gains to the complex float 2D array of input, using values taken from the delay_lut, indexed with delays
 {
   // blockIdx.x is fft_length (input freqs)
