@@ -1,4 +1,4 @@
-/**
+03_CHANNELS/**
  * @file mwax_global_defs.h
  * @author Ian Morrison, Greg Sleap
  * @date 30 Jul 2018
@@ -16,7 +16,7 @@
 #define MWAX_COMMAND_QUIT "QUIT"                            // Finish current task, then exit
 
 //
-// Keywords within the PSRDADA Header
+// Correlator keywords within the PSRDADA Header
 //
 #define HEADER_POPULATED "POPULATED"                        // 0=header being assembled; 1=header is ready for reading
 #define HEADER_OBS_ID "OBS_ID"                              // Observation ID (GPS start time of obs)
@@ -50,3 +50,38 @@
 #define HEADER_SAMPLE_RATE "SAMPLE_RATE"                    // Sampling rate of a coarse channel (different to BW if oversampled)
 #define HEADER_MC_IP "MC_IP"                                // Multicast IP that the data was addressed to
 #define HEADER_MC_PORT "MC_PORT"                            // Multicast port that the data was addressed to
+
+//
+// Beamformer keywords within the PSRDADA Header
+//
+#define HEADER_INCOHERENT_BEAM_01_CHANNELS "INCOHERENT_BEAM_01_CHANNELS"  // Requests an incoherent beam to be formed
+#define HEADER_INCOHERENT_BEAM_02_CHANNELS "INCOHERENT_BEAM_02_CHANNELS"  // (channelised using an FFT of the specified length)
+#define HEADER_INCOHERENT_BEAM_03_CHANNELS "INCOHERENT_BEAM_03_CHANNELS"
+#define HEADER_INCOHERENT_BEAM_04_CHANNELS "INCOHERENT_BEAM_04_CHANNELS"
+#define HEADER_INCOHERENT_BEAM_05_CHANNELS "INCOHERENT_BEAM_05_CHANNELS"
+#define HEADER_INCOHERENT_BEAM_06_CHANNELS "INCOHERENT_BEAM_06_CHANNELS"
+#define HEADER_INCOHERENT_BEAM_07_CHANNELS "INCOHERENT_BEAM_07_CHANNELS"
+#define HEADER_INCOHERENT_BEAM_08_CHANNELS "INCOHERENT_BEAM_08_CHANNELS"
+#define HEADER_INCOHERENT_BEAM_09_CHANNELS "INCOHERENT_BEAM_09_CHANNELS"
+#define HEADER_INCOHERENT_BEAM_10_CHANNELS "INCOHERENT_BEAM_10_CHANNELS"
+
+#define HEADER_COHERENT_BEAM_01 "COHERENT_BEAM_01"                        // Requests a coherent beam to be formed
+#define HEADER_COHERENT_BEAM_02 "COHERENT_BEAM_02"                        // (channelisation common to all coherent beams, as per command line parameter)
+#define HEADER_COHERENT_BEAM_03 "COHERENT_BEAM_03"
+#define HEADER_COHERENT_BEAM_04 "COHERENT_BEAM_04"
+#define HEADER_COHERENT_BEAM_05 "COHERENT_BEAM_05"
+#define HEADER_COHERENT_BEAM_06 "COHERENT_BEAM_06"
+#define HEADER_COHERENT_BEAM_07 "COHERENT_BEAM_07"
+#define HEADER_COHERENT_BEAM_08 "COHERENT_BEAM_08"
+#define HEADER_COHERENT_BEAM_09 "COHERENT_BEAM_09"
+#define HEADER_COHERENT_BEAM_10 "COHERENT_BEAM_10"
+#define HEADER_COHERENT_BEAM_11 "COHERENT_BEAM_11"
+#define HEADER_COHERENT_BEAM_12 "COHERENT_BEAM_12"
+#define HEADER_COHERENT_BEAM_13 "COHERENT_BEAM_13"
+#define HEADER_COHERENT_BEAM_14 "COHERENT_BEAM_14"
+#define HEADER_COHERENT_BEAM_15 "COHERENT_BEAM_15"
+#define HEADER_COHERENT_BEAM_16 "COHERENT_BEAM_16"
+#define HEADER_COHERENT_BEAM_17 "COHERENT_BEAM_17"
+#define HEADER_COHERENT_BEAM_18 "COHERENT_BEAM_18"
+#define HEADER_COHERENT_BEAM_19 "COHERENT_BEAM_19"
+#define HEADER_COHERENT_BEAM_20 "COHERENT_BEAM_20"
