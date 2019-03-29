@@ -65,8 +65,8 @@
 #define HEADER_INCOHERENT_BEAM_09_CHANNELS "INCOHERENT_BEAM_09_CHANNELS"
 #define HEADER_INCOHERENT_BEAM_10_CHANNELS "INCOHERENT_BEAM_10_CHANNELS"
 
-#define HEADER_COHERENT_BEAM_01 "COHERENT_BEAM_01"                        // Requests a coherent beam to be formed
-#define HEADER_COHERENT_BEAM_02 "COHERENT_BEAM_02"                        // (channelisation common to all coherent beams, as per command line parameter)
+#define HEADER_COHERENT_BEAM_01 "COHERENT_BEAM_01"           // Requests a coherent beam to be formed
+#define HEADER_COHERENT_BEAM_02 "COHERENT_BEAM_02"           // (channelisation common to all coherent beams, as per command line parameter)
 #define HEADER_COHERENT_BEAM_03 "COHERENT_BEAM_03"
 #define HEADER_COHERENT_BEAM_04 "COHERENT_BEAM_04"
 #define HEADER_COHERENT_BEAM_05 "COHERENT_BEAM_05"
