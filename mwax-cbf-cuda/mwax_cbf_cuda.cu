@@ -747,23 +747,21 @@ int mwax_sum_powers_dual_pol (float* input, float* output, unsigned num_antennas
 // and this current block's data are placed according to "aggregate_count".
 // - samples are also promoted from 8-bit integers to floats
 // - samples are also weighted by path according to "weights"
-__global__ void aggregate_promote_and_weight_kernel(const float* weights, const char* input, float* output, unsigned rows, unsigned columns, int extended_row_length, int first_write_idx)
+__global__ void aggregate_promote_and_weight_kernel(const float* weights, const char* input, float* output, unsigned rows, unsigned columns, int extended_row_length)
 {
   // blockIdx.x is column (input time)
   // threadIdx.x is row (input path)
   float weight = weights[threadIdx.x];
   int idx_read = 2*(threadIdx.x*columns + blockIdx.x);  // x2 for complex input samples
-  //int extended_row_length = columns*num_to_aggregate;   // length of aggregated rows
-  //int first_idx_write = columns*aggregate_count;        // location that first input sample to be placed
+
   // write sequentially with blockIdx (time samples) and stride by the extended row length with threadIdx
   //int idx_write = 2*(first_write_idx + blockIdx.x + extended_row_length*threadIdx.x);
-  float * out_address = output;
-  //float * out_address = output + 2*(first_write_idx + blockIdx.x + extended_row_length*threadIdx.x);
+
+  float * out_address = output + 2*(blockIdx.x + extended_row_length*threadIdx.x);
   //output[idx_write] = (float)input[idx_read]*weight;     // real sample
   //output[idx_write+1] = (float)input[idx_read+1]*weight; // imag sample
-  *out_address = (float)input[idx_read]*weight;     // real sample
-  out_address++;
-  *out_address = (float)input[idx_read+1]*weight; // imag sample
+  *out_address++ = (float)input[idx_read]*weight;   // real sample
+  *out_address = (float)input[idx_read+1]*weight;   // imag sample
 
   return;
 }
@@ -773,7 +771,7 @@ int mwax_aggregate_promote_and_weight(float* weights, char* input, float* output
 {
   int nblocks = (int)columns;  // input time samples
   int nthreads = (int)rows;    // input signal paths
-  aggregate_promote_and_weight_kernel<<<nblocks,nthreads,0,stream>>>(weights,input,output,rows,columns,(columns*num_to_aggregate),(columns*aggregate_count));
+  aggregate_promote_and_weight_kernel<<<nblocks,nthreads,0,stream>>>(weights,input,(output+2*columns*aggregate_count),rows,columns,(columns*num_to_aggregate));
 
   return 0;
 }
