@@ -34,3 +34,5 @@ int xGPU_channel_average_shift_and_scale(float* input, float* output, unsigned n
 int mwax_beamform_summation(float* input, float* output, unsigned num_antennas,  unsigned num_samples_per_antenna, cudaStream_t stream);
 
 int mwax_sum_powers_dual_pol (float* input, float* output, unsigned num_antennas, unsigned num_samples_per_antenna, cudaStream_t stream);
+
+int mwax_aggregate_promote_and_weight(float* weights, char* input, float* output, unsigned rows, unsigned columns, unsigned num_to_aggregate, unsigned aggregate_count, cudaStream_t stream);

@@ -739,3 +739,37 @@ int mwax_sum_powers_dual_pol (float* input, float* output, unsigned num_antennas
 
   return 0;
 }
+
+
+
+// Takes a block of (rows x columns) where columns are 8-bit time samples and rows is signal paths
+// and re-orders it such that the time axis is extended by the factor "num_to_aggregate"
+// and this current block's data are placed according to "aggregate_count".
+// - samples are also promoted from 8-bit integers to floats
+// - samples are also weighted by path according to "weights"
+__global__ void aggregate_promote_and_weight_kernel(const float* weights, const char* input, float* output, unsigned rows, unsigned columns, unsigned num_to_aggregate, unsigned aggregate_count)
+{
+  // blockIdx.x is column (input time)
+  // threadIdx.x is row (input path)
+  float weight = weights[threadIdx.x];
+  int idx_read = 2*(threadIdx.x*columns + blockIdx.x);  // x2 for complex input samples
+  int extended_row_length = columns*num_to_aggregate;   // length of aggregated rows
+  int first_idx_write = columns*aggregate_count;        // location that first input sample to be placed
+  // write sequentially with blockIdx (time samples) and stride by the extended row length with threadIdx
+  int idx_write = 2*(first_idx_write + blockIdx.x + extended_row_length*threadIdx.x);
+
+  output[idx_write] = (float)input[idx_read]*weight;     // real sample
+  output[idx_write+1] = (float)input[idx_read+1]*weight; // imag sample
+
+  return;
+}
+
+extern "C"
+int mwax_aggregate_promote_and_weight(float* weights, char* input, float* output, unsigned rows, unsigned columns, unsigned num_to_aggregate, unsigned aggregate_count, cudaStream_t stream)
+{
+  int nblocks = (int)columns;  // input time samples
+  int nthreads = (int)rows;    // input signal paths
+  aggregate_promote_and_weight_kernel<<<nblocks,nthreads,0,stream>>>(weights,input,output,rows,columns,num_to_aggregate,aggregate_count);
+
+  return 0;
+}
