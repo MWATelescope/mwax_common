@@ -758,8 +758,10 @@ __global__ void aggregate_promote_and_weight_kernel(const float* weights, const 
   // write sequentially with blockIdx (time samples) and stride by the extended row length with threadIdx
   int idx_write = 2*(first_idx_write + blockIdx.x + extended_row_length*threadIdx.x);
 
-  output[idx_write] = (float)input[idx_read]*weight;     // real sample
-  output[idx_write+1] = (float)input[idx_read+1]*weight; // imag sample
+  //output[idx_write] = (float)input[idx_read]*weight;     // real sample
+  //output[idx_write+1] = (float)input[idx_read+1]*weight; // imag sample
+  output[idx_write] = (float)input[idx_read];     // real sample
+  output[idx_write+1] = (float)input[idx_read+1]; // imag sample
 
   return;
 }
