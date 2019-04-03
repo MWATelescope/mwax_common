@@ -757,8 +757,8 @@ __global__ void aggregate_promote_and_weight_kernel(const float* weights, const 
   //int first_idx_write = columns*aggregate_count;        // location that first input sample to be placed
   // write sequentially with blockIdx (time samples) and stride by the extended row length with threadIdx
   //int idx_write = 2*(first_write_idx + blockIdx.x + extended_row_length*threadIdx.x);
-
-  float * out_address = output + 2*(first_write_idx + blockIdx.x + extended_row_length*threadIdx.x);
+  float * out_address = output;
+  //float * out_address = output + 2*(first_write_idx + blockIdx.x + extended_row_length*threadIdx.x);
   //output[idx_write] = (float)input[idx_read]*weight;     // real sample
   //output[idx_write+1] = (float)input[idx_read+1]*weight; // imag sample
   *out_address = (float)input[idx_read]*weight;     // real sample
