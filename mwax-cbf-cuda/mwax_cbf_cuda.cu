@@ -814,7 +814,7 @@ int mwax_aggregate_promote_and_weight(float* weights, char* input, float* output
   int nblocks = (int)columns/nthreads;  // 400 when 51,200 samples
 
   // call kernel with output already set to first write location and the extended row length already calculated
-  aggregate_promote_and_weight_kernel<<<nblocks,nthreads,0,stream>>>(weights,input,(output+2*columns*aggregate_count),rows,columns,(columns*num_to_aggregate));
+  aggregate_promote_and_weight_kernel<<<nblocks,nthreads,0,stream>>>(weights,input,(output+2*columns*aggregate_count),rows,columns,(2*columns*num_to_aggregate));
 
   return 0;
 }
