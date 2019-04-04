@@ -747,6 +747,7 @@ int mwax_sum_powers_dual_pol (float* input, float* output, unsigned num_antennas
 // and this current block's data are placed according to "aggregate_count".
 // - samples are also promoted from 8-bit integers to floats
 // - samples are also weighted by path according to "weights"
+#if 0  // slow due to large stride on adjacent thread writes
 __global__ void aggregate_promote_and_weight_kernel(const float* weights, const char* input, float* output, unsigned rows, unsigned columns, int extended_row_length)
 {
   // blockIdx.x is column (input time)
@@ -768,6 +769,51 @@ int mwax_aggregate_promote_and_weight(float* weights, char* input, float* output
 {
   int nblocks = (int)columns;  // input time samples
   int nthreads = (int)rows;    // input signal paths
+  aggregate_promote_and_weight_kernel<<<nblocks,nthreads,0,stream>>>(weights,input,(output+2*columns*aggregate_count),rows,columns,(columns*num_to_aggregate));
+
+  return 0;
+}
+#endif
+
+// this version writes consecutive memory locations on consecutive threads
+__global__ void aggregate_promote_and_weight_kernel(const float* weights, const char* input, float* output, unsigned rows, unsigned columns, int extended_row_length)
+{
+  // each thread writes out the values for all signal paths, for one sample index (column)
+  // blockIdx.x is a chunk of complex sample columns (total columns = NUM_SAMPS_PER_BLOCK_PER_ANT)
+  // threadIdx.x is index within a block
+  // work in floats, so read_idx doubled
+  int read_idx = 2*(blockIdx.x*blockDim.x + threadIdx.x);  // first read index for this block/thread
+  int write_idx = read_idx;
+  int row_length = 2*columns;  // x2 for working in floats but samples are float complex
+  float weight;
+  int j;
+  for (j=0; j<rows; j++)
+  {
+    weight = weights[j];
+    output[write_idx] = (float)input[read_idx]*weight;     // real sample
+    output[write_idx+1] = (float)input[read_idx+1]*weight; // imag sample
+    read_idx += row_length;            // advance to next input row
+    write_idx += extended_row_length;  // advance to next output row
+  }
+
+  return;
+}
+
+extern "C"
+int mwax_aggregate_promote_and_weight(float* weights, char* input, float* output, unsigned rows, unsigned columns, unsigned num_to_aggregate, unsigned aggregate_count, cudaStream_t stream)
+// NOTE: this version assumes float complex samples, so must be called with columns = NUM_SAMPS_PER_BLOCK_PER_ANT
+//       and with rows = NUM_SIG_PATHS
+{
+  if (columns % 128)
+  {
+    printf("mwax_aggregate_promote_and_weight: ERROR: number of complex samples per antenna should always be divisible by 128\n");
+    return -1;
+  }
+
+  int nthreads = 128;  // all blocks will be 128 threads in size
+  int nblocks = (int)columns/nthreads;  // 400 when 51,200 samples
+
+  // call kernel with output already set to first write location and the extended row length already calculated
   aggregate_promote_and_weight_kernel<<<nblocks,nthreads,0,stream>>>(weights,input,(output+2*columns*aggregate_count),rows,columns,(columns*num_to_aggregate));
 
   return 0;
