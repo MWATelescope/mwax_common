@@ -747,8 +747,8 @@ int mwax_sum_powers_dual_pol (float* input, float* output, unsigned num_antennas
 // and this current block's data are placed according to "aggregate_count".
 // - samples are also promoted from 8-bit integers to floats
 // - samples are also weighted by path according to "weights"
-#if 0  // slow due to large stride on adjacent thread writes
-__global__ void aggregate_promote_and_weight_kernel(const float* weights, const char* input, float* output, unsigned rows, unsigned columns, int extended_row_length)
+// slow due to large stride on adjacent thread writes
+__global__ void slow_aggregate_promote_and_weight_kernel(const float* weights, const char* input, float* output, unsigned rows, unsigned columns, int extended_row_length)
 {
   // blockIdx.x is column (input time)
   // threadIdx.x is row (input path)
@@ -765,17 +765,17 @@ __global__ void aggregate_promote_and_weight_kernel(const float* weights, const 
 }
 
 extern "C"
-int mwax_aggregate_promote_and_weight(float* weights, char* input, float* output, unsigned rows, unsigned columns, unsigned num_to_aggregate, unsigned aggregate_count, cudaStream_t stream)
+int slow_mwax_aggregate_promote_and_weight(float* weights, char* input, float* output, unsigned rows, unsigned columns, unsigned num_to_aggregate, unsigned aggregate_count, cudaStream_t stream)
 {
   int nblocks = (int)columns;  // input time samples
   int nthreads = (int)rows;    // input signal paths
-  aggregate_promote_and_weight_kernel<<<nblocks,nthreads,0,stream>>>(weights,input,(output+2*columns*aggregate_count),rows,columns,(columns*num_to_aggregate));
+  slow_aggregate_promote_and_weight_kernel<<<nblocks,nthreads,0,stream>>>(weights,input,(output+2*columns*aggregate_count),rows,columns,(columns*num_to_aggregate));
 
   return 0;
 }
-#endif
 
-// this version writes consecutive memory locations on consecutive threads
+
+// Fast version: writes consecutive memory locations on consecutive threads
 __global__ void aggregate_promote_and_weight_kernel(const float* weights, const char* input, float* output, unsigned rows, unsigned columns, int extended_row_length)
 {
   // each thread writes out the values for all signal paths, for one sample index (column)
