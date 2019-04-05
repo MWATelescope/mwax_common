@@ -30,10 +30,11 @@
 #define HEADER_NINPUTS "NINPUTS"                            // Number of inputs (tiles*pols) which were received by the vcs machines
 #define HEADER_NINPUTS_XGPU "NINPUTS_XGPU"                  // Number of inputs (tiles*pols) rounded up to the nearest 16 sent to xGPU
 #define HEADER_METADATA_BEAMS "METADATA_BEAMS"              // How many beams to form?
-#define HEADER_APPLY_WEIGHTS "APPLY_WEIGHTS"                // Does precorrelator apply weights?
-#define HEADER_APPLY_DELAYS "APPLY_DELAYS"                  // Does precorrelator apply delays?
+#define HEADER_APPLY_PATH_WEIGHTS "APPLY_PATH_WEIGHTS"      // Apply paths weights prior to xGPU correlation?
+#define HEADER_APPLY_PATH_DELAYS "APPLY_PATH_DELAYS"        // Apply paths delays prior to xGPU correlation?
 #define HEADER_INT_TIME_MSEC "INT_TIME_MSEC"                // Correlator mode: integrations every x milliseconds
 #define HEADER_FSCRUNCH_FACTOR "FSCRUNCH_FACTOR"            // How many 125 Hz ultra fine channels do we average together
+#define HEADER_APPLY_VIS_WEIGHTS "APPLY_VIS_WEIGHTS"        // Apply calculated data occupancy weights to visibilities before outputting them?
 #define HEADER_TRANSFER_SIZE "TRANSFER_SIZE"                // Number of bytes of data to expect in this subobservation including weights:
                                                             // == baselines * (finechannels+1) * (pols^2) * (real_bytes + imaginary_bytes)
                                                             // ==((NINPUTS_XGPU *(NINPUTS_XGPU+2))/8)*(NFINE_CHAN+1)*(NPOL^2)*(NBIT*2/8)
