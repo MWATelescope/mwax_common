@@ -693,6 +693,57 @@ int mwax_beamform_summation(float* input, float* output, unsigned num_antennas, 
 
 
 
+
+__global__ void sum_powers_both_pols_kernel(const float* input, float* output, unsigned num_antennas, unsigned num_samples_per_antenna)
+{
+  // each thread sums the sample power for all antennas, for one sample index (column), for both pols
+  // blockIdx.x is a chunk of complex sample columns (total columns = num_samples_per_antenna)
+  // threadIdx.x is index within a block
+  // work in floats, so read_idx doubled
+  int read_idx = 2*(blockIdx.x*blockDim.x + threadIdx.x);  // column index.  In 2D, there are columns=num_samples_per_antenna, rows=num_antennas
+  int write_idx = blockIdx.x*blockDim.x + threadIdx.x;
+  int one_row_stride = 2*num_samples_per_antenna;  // 2 for working in floats
+  float real, imag;
+  float tempSum;
+  int j;
+  real = input[read_idx];
+  imag = input[read_idx+1];
+  tempSum = real*real + imag*imag;  // power of first antenna this column
+  read_idx += one_row_stride;       // advance to next row (either next pol or next antenna)
+  for (j=1; j<num_antennas; j++)
+  {
+    real = input[read_idx];
+    imag = input[read_idx+1];
+    tempSum += real*real + imag*imag;  // sum in power this antenna
+    read_idx += one_row_stride;        // advance to next row (either next pol or next antenna)
+  }
+  output[write_idx] = tempSum;  // samples summed - write row
+
+  return;
+}
+
+extern "C"
+int mwax_sum_powers_both_pols (float* input, float* output, unsigned num_antennas, unsigned num_samples_per_antenna, cudaStream_t stream)
+// NOTE: this version assumes float complex samples, so must be called with num_samples_per_antenna = NUM_SAMPS_PER_BLOCK_PER_ANT
+//       and with num_antennas = NUM_SIG_PATHS (treat dual pol like double the number of antennas)
+{
+  if (num_samples_per_antenna % 128)
+  {
+    printf("mwax_sum_powers_both_pols: ERROR: number of complex samples per antenna should always be divisible by 128\n");
+    return -1;
+  }
+
+  int nthreads = 128;  // all blocks will be 128 threads in size
+  int nblocks = (int)num_samples_per_antenna/nthreads;  // 400 when 51,200 samples
+
+  sum_powers_both_pols_kernel<<<nblocks,nthreads,0,stream>>>(input,output,num_antennas,num_samples_per_antenna);
+
+  return 0;
+}
+
+
+
+
 __global__ void sum_powers_dual_pol_kernel(const float* input, float* output, unsigned num_antennas, unsigned num_samples_per_antenna)
 {
   // each thread sums the sample power for all antennas, for one sample index (column), for 1 pol only
@@ -700,7 +751,7 @@ __global__ void sum_powers_dual_pol_kernel(const float* input, float* output, un
   // threadIdx.x is index within a block
   // work in floats, so read_idx doubled
   int read_idx = 2*(blockIdx.x*blockDim.x + threadIdx.x);  // column index.  In 2D, there are columns=num_samples_per_antenna, rows=num_antennas
-  int write_idx = blockIdx.x*blockDim.x + threadIdx.x;     //
+  int write_idx = blockIdx.x*blockDim.x + threadIdx.x;
   int two_row_stride = 4*num_samples_per_antenna;  // 2 for working in floats, 2 for skipping a row
   float real, imag;
   float tempSum;
