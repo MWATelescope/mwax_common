@@ -58,8 +58,8 @@
 #define HEADER_NUM_INCOHERENT_BEAMS "NUM_INCOHERENT_BEAMS"                // Number of incoherent beams to form
 #define HEADER_NUM_COHERENT_BEAMS "NUM_COHERENT_BEAMS"                    // Number of coherent beams to form
 
-#define HEADER_INCOHERENT_BEAM_01_CHANNELS "INCOHERENT_BEAM_01_CHANNELS"  // Requests an incoherent beam to be formed
-#define HEADER_INCOHERENT_BEAM_02_CHANNELS "INCOHERENT_BEAM_02_CHANNELS"  // (channelised using an FFT of the specified length)
+#define HEADER_INCOHERENT_BEAM_01_CHANNELS "INCOHERENT_BEAM_01_CHANNELS"  // Specifies the channelisation FFT length for a requested beam
+#define HEADER_INCOHERENT_BEAM_02_CHANNELS "INCOHERENT_BEAM_02_CHANNELS"  // (defaults to channels=1 if keyword not present for a requested beam)
 #define HEADER_INCOHERENT_BEAM_03_CHANNELS "INCOHERENT_BEAM_03_CHANNELS"
 #define HEADER_INCOHERENT_BEAM_04_CHANNELS "INCOHERENT_BEAM_04_CHANNELS"
 #define HEADER_INCOHERENT_BEAM_05_CHANNELS "INCOHERENT_BEAM_05_CHANNELS"
