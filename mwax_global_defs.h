@@ -29,7 +29,7 @@
 #define HEADER_NTIMESAMPLES "NTIMESAMPLES"                  // How many high time resolution (VCS) samples do we get (per sec?)
 #define HEADER_NINPUTS "NINPUTS"                            // Number of inputs (tiles*pols) which were received by the vcs machines
 #define HEADER_NINPUTS_XGPU "NINPUTS_XGPU"                  // Number of inputs (tiles*pols) rounded up to the nearest 16 sent to xGPU
-#define HEADER_METADATA_BEAMS "METADATA_BEAMS"              // How many beams to form?
+//#define HEADER_METADATA_BEAMS "METADATA_BEAMS"              // Deprecated??
 #define HEADER_APPLY_PATH_WEIGHTS "APPLY_PATH_WEIGHTS"      // Apply paths weights prior to xGPU correlation?
 #define HEADER_APPLY_PATH_DELAYS "APPLY_PATH_DELAYS"        // Apply paths delays prior to xGPU correlation?
 #define HEADER_INT_TIME_MSEC "INT_TIME_MSEC"                // Correlator mode: integrations every x milliseconds
@@ -55,6 +55,9 @@
 //
 // Beamformer keywords within the PSRDADA Header
 //
+#define HEADER_NUM_INCOHERENT_BEAMS "NUM_INCOHERENT_BEAMS"                // Number of incoherent beams to form
+#define HEADER_NUM_COHERENT_BEAMS "NUM_COHERENT_BEAMS"                    // Number of coherent beams to form
+
 #define HEADER_INCOHERENT_BEAM_01_CHANNELS "INCOHERENT_BEAM_01_CHANNELS"  // Requests an incoherent beam to be formed
 #define HEADER_INCOHERENT_BEAM_02_CHANNELS "INCOHERENT_BEAM_02_CHANNELS"  // (channelised using an FFT of the specified length)
 #define HEADER_INCOHERENT_BEAM_03_CHANNELS "INCOHERENT_BEAM_03_CHANNELS"
@@ -76,24 +79,3 @@
 #define HEADER_INCOHERENT_BEAM_08_TIME_INTEG "INCOHERENT_BEAM_08_TIME_INTEG"
 #define HEADER_INCOHERENT_BEAM_09_TIME_INTEG "INCOHERENT_BEAM_09_TIME_INTEG"
 #define HEADER_INCOHERENT_BEAM_10_TIME_INTEG "INCOHERENT_BEAM_10_TIME_INTEG"
-
-#define HEADER_COHERENT_BEAM_01 "COHERENT_BEAM_01"           // Requests a coherent beam to be formed
-#define HEADER_COHERENT_BEAM_02 "COHERENT_BEAM_02"           // (channelisation common to all coherent beams, as per command line parameter)
-#define HEADER_COHERENT_BEAM_03 "COHERENT_BEAM_03"           // (voltage beams so time integration not an option)
-#define HEADER_COHERENT_BEAM_04 "COHERENT_BEAM_04"
-#define HEADER_COHERENT_BEAM_05 "COHERENT_BEAM_05"
-#define HEADER_COHERENT_BEAM_06 "COHERENT_BEAM_06"
-#define HEADER_COHERENT_BEAM_07 "COHERENT_BEAM_07"
-#define HEADER_COHERENT_BEAM_08 "COHERENT_BEAM_08"
-#define HEADER_COHERENT_BEAM_09 "COHERENT_BEAM_09"
-#define HEADER_COHERENT_BEAM_10 "COHERENT_BEAM_10"
-#define HEADER_COHERENT_BEAM_11 "COHERENT_BEAM_11"
-#define HEADER_COHERENT_BEAM_12 "COHERENT_BEAM_12"
-#define HEADER_COHERENT_BEAM_13 "COHERENT_BEAM_13"
-#define HEADER_COHERENT_BEAM_14 "COHERENT_BEAM_14"
-#define HEADER_COHERENT_BEAM_15 "COHERENT_BEAM_15"
-#define HEADER_COHERENT_BEAM_16 "COHERENT_BEAM_16"
-#define HEADER_COHERENT_BEAM_17 "COHERENT_BEAM_17"
-#define HEADER_COHERENT_BEAM_18 "COHERENT_BEAM_18"
-#define HEADER_COHERENT_BEAM_19 "COHERENT_BEAM_19"
-#define HEADER_COHERENT_BEAM_20 "COHERENT_BEAM_20"
