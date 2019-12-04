@@ -9,11 +9,14 @@
 #pragma once
 
 //
-// Correlator COMMAND keywords
+// Telescope MODE keywords
 //
-#define MWAX_COMMAND_CAPTURE "CAPTURE"                      // Normal operation
-#define MWAX_COMMAND_IDLE "IDLE"                            // Do not create/archive FITS files
-#define MWAX_COMMAND_QUIT "QUIT"                            // Finish current task, then exit
+#define MWAX_MODE_HW_LFILES "HW_LFILES"                     // Correlator observation
+#define MWAX_MODE_VOLTAGE_START "VOLTAGE_START"             // Voltage Capture observation
+#define MWAX_MODE_NO_CAPTURE "NO_CAPTURE"                   // Subfiles will still be produced but no correlation or voltage capture
+#define MWAX_MODE_QUIT "QUIT"                               // Finish current task, then exit 
+                                                            // (this is not a command provided by the telescope) but could be used to 
+                                                            // pass a shutdown message only.
 
 //
 // Correlator keywords within the PSRDADA Header
@@ -21,7 +24,7 @@
 #define HEADER_POPULATED "POPULATED"                        // 0=header being assembled; 1=header is ready for reading
 #define HEADER_OBS_ID "OBS_ID"                              // Observation ID (GPS start time of obs)
 #define HEADER_SUBOBS_ID "SUBOBS_ID"                        // GPS start time of this 8 second sub observation
-#define HEADER_COMMAND "COMMAND"                            // Command to run: CAPTURE, IDLE, QUIT
+#define HEADER_MODE "MODE"                                  // Telescope mode: HW_LFILES, VOLTAGE_START, NO_CAPTURE, QUIT
 #define HEADER_UTC_START "UTC_START"                        // UTC start time of observation (string)
 #define HEADER_OBS_OFFSET "OBS_OFFSET"                      // Seconds since start of observation; e.g. 0,8,16,etc
 #define HEADER_NBIT "NBIT"                                  // Bits per value (nominally 32 for float)
