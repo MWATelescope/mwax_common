@@ -11,8 +11,8 @@
 //
 // Telescope MODE keywords
 //
-#define MWAX_MODE_HW_LFILES "HW_LFILES"                     // Correlator observation
-#define MWAX_MODE_VOLTAGE_START "VOLTAGE_START"             // Voltage Capture observation
+#define MWAX_MODE_CORRELATOR "HW_LFILES"                    // Correlator observation
+#define MWAX_MODE_VOLTAGE_CAPTURE "VOLTAGE_START"           // Voltage Capture observation
 #define MWAX_MODE_NO_CAPTURE "NO_CAPTURE"                   // Subfiles will still be produced but no correlation or voltage capture
 #define MWAX_MODE_QUIT "QUIT"                               // Finish current task, then exit 
                                                             // (this is not a command provided by the telescope) but could be used to 
