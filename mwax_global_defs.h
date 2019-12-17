@@ -6,17 +6,14 @@
  *
  */
 
-#pragma once
+//#ifndef MWAX_GLOBAL_DEFS_H_INCLUDED // This prevents linker errors due to multiple translation units using this
+//#define MWAX_GLOBAL_DEFS_H_INCLUDED
 
-//
-// Telescope MODE keywords
-//
-#define MWAX_MODE_CORRELATOR "HW_LFILES"                    // Correlator observation
-#define MWAX_MODE_VOLTAGE_CAPTURE "VOLTAGE_START"           // Voltage Capture observation
-#define MWAX_MODE_NO_CAPTURE "NO_CAPTURE"                   // Subfiles will still be produced but no correlation or voltage capture
-#define MWAX_MODE_QUIT "QUIT"                               // Finish current task, then exit 
-                                                            // (this is not a command provided by the telescope) but could be used to 
-                                                            // pass a shutdown message only.
+int is_mwax_mode_valid(const char* mode);
+int is_mwax_mode_correlator(const char* mode);
+int is_mwax_mode_vcs(const char* mode);
+int is_mwax_mode_no_capture(const char* mode);
+int is_mwax_mode_quit(const char* mode);
 
 //
 // Correlator keywords within the PSRDADA Header
@@ -86,19 +83,5 @@
 #define HEADER_INCOHERENT_BEAM_09_TIME_INTEG "INCOHERENT_BEAM_09_TIME_INTEG"
 #define HEADER_INCOHERENT_BEAM_10_TIME_INTEG "INCOHERENT_BEAM_10_TIME_INTEG"
 
-// define array of beam keyword strings
-// Setup arrays of strings
-char* incoherent_beam_time_integ_string[INCOHERENT_BEAMS_MAX] = {
-    HEADER_INCOHERENT_BEAM_01_TIME_INTEG, HEADER_INCOHERENT_BEAM_02_TIME_INTEG,
-    HEADER_INCOHERENT_BEAM_03_TIME_INTEG, HEADER_INCOHERENT_BEAM_04_TIME_INTEG,
-    HEADER_INCOHERENT_BEAM_05_TIME_INTEG, HEADER_INCOHERENT_BEAM_06_TIME_INTEG,
-    HEADER_INCOHERENT_BEAM_07_TIME_INTEG, HEADER_INCOHERENT_BEAM_08_TIME_INTEG,
-    HEADER_INCOHERENT_BEAM_09_TIME_INTEG, HEADER_INCOHERENT_BEAM_10_TIME_INTEG
-};
-char* incoherent_beam_fine_chan_string[INCOHERENT_BEAMS_MAX] = { 
-    HEADER_INCOHERENT_BEAM_01_CHANNELS, HEADER_INCOHERENT_BEAM_02_CHANNELS,
-    HEADER_INCOHERENT_BEAM_03_CHANNELS, HEADER_INCOHERENT_BEAM_04_CHANNELS,
-    HEADER_INCOHERENT_BEAM_05_CHANNELS, HEADER_INCOHERENT_BEAM_06_CHANNELS,
-    HEADER_INCOHERENT_BEAM_07_CHANNELS, HEADER_INCOHERENT_BEAM_08_CHANNELS,
-    HEADER_INCOHERENT_BEAM_09_CHANNELS, HEADER_INCOHERENT_BEAM_10_CHANNELS
-};
+extern char* incoherent_beam_time_integ_string[INCOHERENT_BEAMS_MAX];
+extern char* incoherent_beam_fine_chan_string[INCOHERENT_BEAMS_MAX];
