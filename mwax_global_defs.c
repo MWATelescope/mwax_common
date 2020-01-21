@@ -41,6 +41,13 @@ const char* MWAX_MODE_QUIT = "QUIT";                        // Finish current ta
 //
 // Telescope MODE helper functions
 //
+
+/**
+ * 
+ *  @brief Checks to see if the MODE value from the psrdada ringbuffer is value.
+ *  @param[in] mode A pointer to the mode string to check.
+ *  @returns 0 if mode is valid or <> 0 for not valid.
+ */
 int is_mwax_mode_valid(const char* mode)
 {
     return is_mwax_mode_correlator(mode) ||
@@ -49,12 +56,24 @@ int is_mwax_mode_valid(const char* mode)
            is_mwax_mode_quit(mode);
 }
 
+/**
+ * 
+ *  @brief Checks to see if the MODE value from the psrdada ringbuffer is a valid correlator value.
+ *  @param[in] mode A pointer to the mode string to check.
+ *  @returns 0 if mode is a correlator value or <> 0 if not.
+ */
 int is_mwax_mode_correlator(const char* mode)
 {
     return strcmp(mode, MWAX_MODE_V1_CORRELATOR) == 0 ||            
            strcmp(mode, MWAX_MODE_V2_CORRELATOR) == 0;
 }
 
+/**
+ * 
+ *  @brief Checks to see if the MODE value from the psrdada ringbuffer is a valid voltage capture system (VCS) value.
+ *  @param[in] mode A pointer to the mode string to check.
+ *  @returns 0 if mode is a VCS value or <> 0 if not.
+ */
 int is_mwax_mode_vcs(const char* mode)
 {
     return strcmp(mode, MWAX_MODE_V1_VOLTAGE_CAPTURE) == 0 || 
@@ -62,11 +81,23 @@ int is_mwax_mode_vcs(const char* mode)
            strcmp(mode, MWAX_MODE_V2_VOLTAGE_CAPTURE) == 0;
 }
 
+/**
+ * 
+ *  @brief Checks to see if the MODE value from the psrdada ringbuffer is a no capture value.
+ *  @param[in] mode A pointer to the mode string to check.
+ *  @returns 0 if mode is a no capture value or <> 0 if not.
+ */
 int is_mwax_mode_no_capture(const char* mode)
 {
     return strcmp(mode, MWAX_MODE_NO_CAPTURE) == 0;
 }
 
+/**
+ * 
+ *  @brief Checks to see if the MODE value from the psrdada ringbuffer is a quit value.
+ *  @param[in] mode A pointer to the mode string to check.
+ *  @returns 0 if mode is a quit value or <> 0 if not.
+ */
 int is_mwax_mode_quit(const char* mode)
 {
     return strcmp(mode, MWAX_MODE_QUIT) == 0;
