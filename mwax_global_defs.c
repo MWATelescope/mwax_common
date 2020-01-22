@@ -46,7 +46,7 @@ const char* MWAX_MODE_QUIT = "QUIT";                        // Finish current ta
  * 
  *  @brief Checks to see if the MODE value from the psrdada ringbuffer is value.
  *  @param[in] mode A pointer to the mode string to check.
- *  @returns 0 if mode is valid or <> 0 for not valid.
+ *  @returns 1 if mode is valid or 0 for not valid.
  */
 int is_mwax_mode_valid(const char* mode)
 {
@@ -60,7 +60,7 @@ int is_mwax_mode_valid(const char* mode)
  * 
  *  @brief Checks to see if the MODE value from the psrdada ringbuffer is a valid correlator value.
  *  @param[in] mode A pointer to the mode string to check.
- *  @returns 0 if mode is a correlator value or <> 0 if not.
+ *  @returns 1 if mode is a correlator value or 0 if not.
  */
 int is_mwax_mode_correlator(const char* mode)
 {
@@ -72,7 +72,7 @@ int is_mwax_mode_correlator(const char* mode)
  * 
  *  @brief Checks to see if the MODE value from the psrdada ringbuffer is a valid voltage capture system (VCS) value.
  *  @param[in] mode A pointer to the mode string to check.
- *  @returns 0 if mode is a VCS value or <> 0 if not.
+ *  @returns 1 if mode is a VCS value or 0 if not.
  */
 int is_mwax_mode_vcs(const char* mode)
 {
@@ -85,7 +85,7 @@ int is_mwax_mode_vcs(const char* mode)
  * 
  *  @brief Checks to see if the MODE value from the psrdada ringbuffer is a no capture value.
  *  @param[in] mode A pointer to the mode string to check.
- *  @returns 0 if mode is a no capture value or <> 0 if not.
+ *  @returns 1 if mode is a no capture value or 0 if not.
  */
 int is_mwax_mode_no_capture(const char* mode)
 {
@@ -96,7 +96,7 @@ int is_mwax_mode_no_capture(const char* mode)
  * 
  *  @brief Checks to see if the MODE value from the psrdada ringbuffer is a quit value.
  *  @param[in] mode A pointer to the mode string to check.
- *  @returns 0 if mode is a quit value or <> 0 if not.
+ *  @returns 1 if mode is a quit value or 0 if not.
  */
 int is_mwax_mode_quit(const char* mode)
 {
