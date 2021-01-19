@@ -91,7 +91,7 @@ int is_mwax_mode_vcs(const char* mode)
 int is_mwax_mode_no_capture(const char* mode)
 {
     return strcmp(mode, MWAX_MODE_NO_CAPTURE) == 0 ||
-           strcmp(mode, MWAX_MODE_CORR_MODE_CHANGE) == 0;
+           strcmp(mode, MWAX_MODE_V1_CORR_MODE_CHANGE) == 0;
 }
 
 /**
