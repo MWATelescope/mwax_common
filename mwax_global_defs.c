@@ -30,13 +30,14 @@ char* incoherent_beam_fine_chan_string[INCOHERENT_BEAMS_MAX] = {
 //
 // Telescope MODE keywords
 //
-const char* MWAX_MODE_V1_CORRELATOR  = "HW_LFILES";         // v1 Correlator observation
-const char* MWAX_MODE_V1_VOLTAGE_CAPTURE = "VOLTAGE_START"; // v1 Voltage Capture observation
-const char* MWAX_MODE_V1_VOLTAGE_BUFFER = "VOLTAGE_BUFFER"; // v1 Voltage Capture observation
-const char* MWAX_MODE_V2_CORRELATOR = "MWAX_CORRELATOR";    // v2 Correlator observation
-const char* MWAX_MODE_V2_VOLTAGE_CAPTURE = "MWAX_VCS";      // v2 Voltage Capture observation
-const char* MWAX_MODE_NO_CAPTURE = "NO_CAPTURE";            // Subfiles will still be produced but no correlation or voltage capture
-const char* MWAX_MODE_QUIT = "QUIT";                        // Finish current task, then exit 
+const char* MWAX_MODE_V1_CORRELATOR  = "HW_LFILES";             // v1 Correlator observation
+const char* MWAX_MODE_V1_VOLTAGE_CAPTURE = "VOLTAGE_START";     // v1 Voltage Capture observation
+const char* MWAX_MODE_V1_VOLTAGE_BUFFER = "VOLTAGE_BUFFER";     // v1 Voltage Capture observation
+const char* MWAX_MODE_V1_CORR_MODE_CHANGE = "CORR_MODE_CHANGE"; // v1 Mode change
+const char* MWAX_MODE_V2_CORRELATOR = "MWAX_CORRELATOR";        // v2 Correlator observation
+const char* MWAX_MODE_V2_VOLTAGE_CAPTURE = "MWAX_VCS";          // v2 Voltage Capture observation
+const char* MWAX_MODE_NO_CAPTURE = "NO_CAPTURE";                // Subfiles will still be produced but no correlation or voltage capture
+const char* MWAX_MODE_QUIT = "QUIT";                            // Finish current task, then exit 
 
 //
 // Telescope MODE helper functions
@@ -89,7 +90,8 @@ int is_mwax_mode_vcs(const char* mode)
  */
 int is_mwax_mode_no_capture(const char* mode)
 {
-    return strcmp(mode, MWAX_MODE_NO_CAPTURE) == 0;
+    return strcmp(mode, MWAX_MODE_NO_CAPTURE) == 0 ||
+           strcmp(mode, MWAX_MODE_CORR_MODE_CHANGE) == 0;
 }
 
 /**
