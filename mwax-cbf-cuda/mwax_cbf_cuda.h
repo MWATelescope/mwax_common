@@ -31,6 +31,8 @@ int xGPU_channel_average(float* input, float* output, unsigned num_visibility_sa
 
 int xGPU_channel_average_shift_and_scale(float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned num_input_channels, unsigned fscrunch_factor, float scale_factor, cudaStream_t stream);
 
+int xGPU_channel_average_shift_and_scale_centre_symmetric(float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned num_input_channels, unsigned fscrunch_factor, float scale_factor, cudaStream_t stream);
+
 int mwax_beamform_summation(float* input, float* output, unsigned num_antennas,  unsigned num_samples_per_antenna, cudaStream_t stream);
 
 int mwax_sum_powers_both_pols (float* input, float* output, unsigned num_antennas, unsigned num_samples_per_antenna, cudaStream_t stream);

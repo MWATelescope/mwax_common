@@ -573,7 +573,7 @@ int xGPU_channel_average(float* input, float* output, unsigned num_visibility_sa
 // Also excludes the DC ultrafine channel from the summation of the centre channel.
 __global__ void xGPU_channel_average_shift_and_scale_kernel(const float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned num_output_channels, unsigned fscrunch_factor, float chan0_scale_factor, float remaining_scale_factor)
 {
-  // blockDim threads per block: each thread sums all values (real or imag floats) for one output channel
+  // blockDim threads per block: each thread sums all values (real or imag floats) for all output channels for a single visibility column
   // blockIdx.x is a chunk of visibility columns (total columns = num_visibility_samps_per_chan)
   // threadIdx.x is index within a block
   int column_index = blockIdx.x * blockDim.x + threadIdx.x;  // which visibility sample across the row
@@ -640,6 +640,167 @@ int xGPU_channel_average_shift_and_scale(float* input, float* output, unsigned n
 
   // call kernel with input pointer advanced to second row to exclude the first (DC) ultrafine channel
   xGPU_channel_average_shift_and_scale_kernel<<<nblocks,nthreads,0,stream>>>((input+num_visibility_samps_per_chan),output,num_visibility_samps_per_chan,num_output_channels,fscrunch_factor,channel0_scale_factor,scale_factor);
+
+  return 0;
+}
+
+
+
+// Performs channel summation on xGPU output visibilities as well as shifting the DC channel to the centre output channel
+// and scaling by a specified multiplicative factor that combines time/frequency normalisation and weighting (due to missing data).
+// Also excludes the DC ultrafine channel from the summation of the centre channel.
+// This version produces the same fine channelisation boundaries as the MWA legacy correlator, i.e. the centre of the centre
+// fine channel corresponds to the centre of the original coarse channel, and a symmetric number of lower and upper fine channels
+// either side of the centre channel.
+// There are different kernels for the odd and even fscrunch cases because is managed differently in each case.
+
+__global__ void xGPU_channel_average_shift_and_scale_centre_symmetric_odd_fscrunch_kernel(const float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned num_input_channels, unsigned num_output_channels, unsigned fscrunch_factor, float chan0_scale_factor, float remaining_scale_factor)
+{
+  // blockDim threads per block: each thread sums all values (real or imag floats) for all output channels for a single visibility column
+  // blockIdx.x is a chunk of blockDim visibility columns (total columns = num_visibility_samps_per_chan)
+  // threadIdx.x is the index within a block
+  int column_index = blockIdx.x * blockDim.x + threadIdx.x;  // which visibility sample across the row
+  int write_idx = column_index + (num_visibility_samps_per_chan*num_output_channels/2);  // start halfway into output array to centre the DC channel
+  // if num_output_channels is odd, this will index the middle row of the output array
+  // if num_output_channels is even it will index the first row of the second half of the output array, and the first row will be the bogus half lower / half upper case
+  int side_fscrunch = fscrunch_factor/2;   // fscrunch must be odd for this kernel call - in which case side_fscrunch is the number of ultrafine channels to sum either side of the centre ultrafine channel
+  int read_idx = column_index + (num_visibility_samps_per_chan*(num_input_channels - side_fscrunch));  // go "back" by side_fscrunch rows, which means taking rows from upper end
+  float tempSum;
+  int j,k;
+  // first output channel is different - we exclude the first (DC) ultrafine channel
+  tempSum = input[read_idx];  // first row of this channel
+  for (k=1; k<side_fscrunch; k++)  // sum remaining lower side rows
+  {
+    read_idx += num_visibility_samps_per_chan;  // advance to next row
+    tempSum += input[read_idx];  // sum in this row
+  }
+  // set read index to first row of input array after the DC row (because we don't sum in the DC ultrafine channel)
+  read_idx = column_index + num_visibility_samps_per_chan;
+  for (k=0; k<side_fscrunch; k++)  // sum all upper side rows
+  {
+    tempSum += input[read_idx];  // sum in this row
+    read_idx += num_visibility_samps_per_chan;  // advance to next row
+  }
+  output[write_idx] = tempSum * chan0_scale_factor;  // channel summed - scale and write to this row
+  if (num_output_channels == 1)   // all done so return
+    return;
+
+  // process the remaining output channels
+  for (j=1; j<num_output_channels; j++)
+  {
+    tempSum = input[read_idx];  // first row of this channel (the index was already advanced to the correct row)
+    read_idx += num_visibility_samps_per_chan;  // advance to next row
+    for (k=1; k<fscrunch_factor; k++)  // sum remaining rows
+    {
+      tempSum += input[read_idx];  // sum in this row
+      read_idx += num_visibility_samps_per_chan;  // advance to next row
+    }
+
+    if (j == (num_output_channels/2))
+      write_idx = column_index;  // wrap back to first output row (most negative frequency channel)
+    else
+      write_idx += num_visibility_samps_per_chan;  // advance to next output row
+
+    output[write_idx] = tempSum * remaining_scale_factor;  // channel summed - scale and write to this row
+  }
+  return;
+}
+
+__global__ void xGPU_channel_average_shift_and_scale_centre_symmetric_even_fscrunch_kernel(const float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned num_input_channels, unsigned num_output_channels, unsigned fscrunch_factor, float chan0_scale_factor, float remaining_scale_factor)
+{
+  // blockDim threads per block: each thread sums all values (real or imag floats) for all output channels for a single visibility column
+  // blockIdx.x is a chunk of blockDim visibility columns (total columns = num_visibility_samps_per_chan)
+  // threadIdx.x is the index within a block
+  int column_index = blockIdx.x * blockDim.x + threadIdx.x;  // which visibility sample across the row
+  int write_idx = column_index + (num_visibility_samps_per_chan*num_output_channels/2);  // start halfway into output array to centre the DC channel
+  // if num_output_channels is odd, this will index the middle row of the output array
+  // if num_output_channels is even it will index the first row of the second half of the output array, and the first row will be the bogus half lower / half upper case
+  int side_fscrunch = (fscrunch_factor/2) - 1;   // fscrunch must be even for this kernel call - in which case side_fscrunch is the number of ultrafine channels to sum either side of the centre ultrafine channel
+  // Then there is a choice of either:
+  //  a) adding half of the ultrafine channels at the lower and upper extremes (i.e. the ultrafine channel that straddles the boundary between output channels)
+  //     (this approach will use all available power but will inntroduce some covariance between adjacent output channels), or
+  //  b) not summing in the straddling ultrafine channel to either output channel it straddles
+  //     (this loses some power but won't introduce covariance between output channels)
+  // This version does a), which we think most closely emulates the legacy correlator fine channelisation, which has overlapping responses
+  int read_idx = column_index + (num_visibility_samps_per_chan*(num_input_channels - side_fscrunch - 1));  // go "back" by (side_fscrunch+1) rows, which means taking rows from upper end
+  float tempSum;
+  int j,k;
+  // first output channel is different - we exclude the first (DC) ultrafine channel
+  tempSum = 0.5*input[read_idx];  // first row of this channel (half contribution from this ultrafine channel)
+  for (k=0; k<side_fscrunch; k++)  // sum all lower side rows
+  {
+    read_idx += num_visibility_samps_per_chan;  // advance to next row
+    tempSum += input[read_idx];  // sum in this row
+  }
+  // set read index to first row of input array after the DC row (because we don't sum in the DC ultrafine channel)
+  read_idx = column_index + num_visibility_samps_per_chan;
+  for (k=0; k<side_fscrunch; k++)  // sum all upper side rows
+  {
+    tempSum += input[read_idx];  // sum in this row
+    read_idx += num_visibility_samps_per_chan;  // advance to next row
+  }
+  tempSum += 0.5*input[read_idx];  // last row of this channel (half contribution from this ultrafine channel)
+  // don't advance to next row - this will be the first row included in the next channel
+
+  output[write_idx] = tempSum * chan0_scale_factor;  // channel summed - scale and write to this row
+  if (num_output_channels == 1)   // all done so return
+    return;
+
+  // process the remaining output channels
+  for (j=1; j<num_output_channels; j++)
+  {
+    tempSum = 0.5*input[read_idx];  // first row of this channel (the index was already at the correct row)
+    read_idx += num_visibility_samps_per_chan;  // advance to next row
+    for (k=1; k<fscrunch_factor; k++)  // sum lower, centre and upper rows (2*side_fscrunch + 1) = (fscrunch_factor - 1)
+    {
+      tempSum += input[read_idx];  // sum in this row
+      read_idx += num_visibility_samps_per_chan;  // advance to next row
+    }
+    tempSum += 0.5*input[read_idx];  // last row of this channel (half contribution from this ultrafine channel)
+    // don't advance to next row - this will be the first row included in the next channel
+
+    if (j == (num_output_channels/2))
+      write_idx = column_index;  // wrap back to first output row (most negative frequency channel)
+    else
+      write_idx += num_visibility_samps_per_chan;  // advance to next output row
+
+    output[write_idx] = tempSum * remaining_scale_factor;  // channel summed - scale and write to this row
+  }
+  return;
+}
+
+extern "C"
+int xGPU_channel_average_shift_and_scale_centre_symmetric(float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned num_input_channels, unsigned fscrunch_factor, float scale_factor, cudaStream_t stream)
+{
+  if (num_visibility_samps_per_chan % 64)
+  {
+    printf("xGPU_channel_average: ERROR: number of visibility samples (real or imag) per channel should always be divisible by 64\n");
+    return -1;
+  }
+
+  if (num_input_channels % fscrunch_factor)
+  {
+    printf("xGPU_channel_average: ERROR: number of input channels not an integer multiple of averaging factor\n");
+    return -1;
+  }
+
+  // Think of the xGPU output as a 2-D array with the columns being the visibility values for a given frequency channel
+  // (i.e. baselines,pols) and the rows being the different ultrafine frequency channels - the first row corresponding
+  // to the FFT DC bin (since the input is not FFT-shifted).
+  int nthreads = 64;  // all blocks will be 64 threads in size - each thread will process one visibility column
+  int nblocks = (int)num_visibility_samps_per_chan/nthreads;  // each block will process 64 visibility columns
+  unsigned num_output_channels = num_input_channels/fscrunch_factor;
+  float channel0_scale_factor;
+  if (fscrunch_factor == 1)
+    channel0_scale_factor = 0.0;  // clear channel 0 when no channel averaging
+  else
+    channel0_scale_factor = scale_factor*(float)fscrunch_factor/((float)fscrunch_factor - 1.0);  // channel 0 is averaging over one fewer ultrafine channels
+
+  // Call kernel - there are different kernels depending on whether the fscrunch factor is odd or even
+if (fscrunch_factor % 2)
+  xGPU_channel_average_shift_and_scale_centre_symmetric_odd_fscrunch_kernel<<<nblocks,nthreads,0,stream>>>(input,output,num_visibility_samps_per_chan,num_input_channels,num_output_channels,fscrunch_factor,channel0_scale_factor,scale_factor);
+else
+  xGPU_channel_average_shift_and_scale_centre_symmetric_even_fscrunch_kernel<<<nblocks,nthreads,0,stream>>>(input,output,num_visibility_samps_per_chan,num_input_channels,num_output_channels,fscrunch_factor,channel0_scale_factor,scale_factor);
 
   return 0;
 }
