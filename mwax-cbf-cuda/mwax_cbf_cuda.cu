@@ -259,6 +259,41 @@ int mwax_lookup_delay_gains(int32_t* delays, cuFloatComplex* delay_lut, cuFloatC
 
 
 
+
+__global__ void mwax_lookup_delay_gains_delay_pairs_kernel(const int32_t* delays, const cuFloatComplex* delay_lut, cuFloatComplex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts)
+// assembles the complex float 2D array of delay_gains taken from the delay_lut, indexed with delays
+// delays provided in the form of start-end delay pairs for each block
+{
+  // blockIdx.x is fft_length (input freqs)
+  // threadIdx.x is row (input antenna)
+  #define NUM_DELAYS 2001  // zero delay case and +- 1000 millisamples
+  #define MAX_DELAY ((NUM_DELAYS-1)/2)
+  // for now just use the start delay value, which is the first of each pair - hence 2*threadIdx
+  // TO DO: interploate between start and end values to provide different delay values for each FFT
+  int delay_idx = (delays[2*threadIdx.x] + MAX_DELAY)*fft_length + blockIdx.x;
+  cuFloatComplex delay_gain = delay_lut[delay_idx];
+  int gains_idx = (threadIdx.x*fft_length*num_ffts) + blockIdx.x;
+  int i;
+  for (i=0; i<num_ffts; i++)  // each FFT will use the same delay gain gradient
+  {
+    delay_gains[gains_idx + i*fft_length] = delay_gain;
+  }
+  return;
+}
+
+extern "C"
+int mwax_lookup_delay_gains_delay_pairs(int32_t* delays, cuFloatComplex* delay_lut, cuFloatComplex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts, cudaStream_t stream)
+{
+  int nblocks = (int)fft_length;
+  int nthreads = (int)paths;
+  mwax_lookup_delay_gains_delay_pairs_kernel<<<nblocks,nthreads,0,stream>>>(delays,delay_lut,delay_gains,paths,fft_length,num_ffts);
+
+  return 0;
+}
+
+
+
+
 __global__ void mwax_lookup_and_apply_delay_gains_kernel(const int32_t* delays, const float* delay_lut, float* input, unsigned paths, unsigned fft_length, unsigned num_ffts)
 // applies delay gains to the complex float 2D array of input, using values taken from the delay_lut, indexed with delays
 // floats are used to allow fast complex multiply algorithm
