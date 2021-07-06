@@ -17,6 +17,8 @@ int mwax_fast_complex_multiply(float* input, float* output, unsigned size, cudaS
 
 int mwax_lookup_delay_gains(int32_t* delays, float complex* delay_lut, float complex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts, cudaStream_t stream);
 
+int mwax_lookup_delay_gains_delay_pairs(int32_t* delays, float complex* delay_lut, float complex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts, cudaStream_t stream);
+
 int mwax_lookup_and_apply_delay_gains(int32_t* delays, float* delay_lut, float* input, unsigned paths, unsigned fft_length, unsigned num_ffts, cudaStream_t stream);
 
 int mwax_transpose_to_xGPU(float complex* input, float complex* output, unsigned rows, unsigned columns, cudaStream_t stream);
