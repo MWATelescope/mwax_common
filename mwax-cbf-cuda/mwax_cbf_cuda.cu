@@ -270,14 +270,15 @@ __global__ void mwax_lookup_delay_gains_delay_pairs_kernel(const int32_t* delays
   #define MAX_DELAY ((NUM_DELAYS-1)/2)
   // for now just use the start delay value, which is the first of each pair - hence 2*threadIdx
   // TO DO: interploate between start and end values to provide different delay values for each FFT
-  int delay_idx = (delays[2*threadIdx.x] + MAX_DELAY)*fft_length + blockIdx.x;
+  //int delay_idx = (delays[2*threadIdx.x] + MAX_DELAY)*fft_length + blockIdx.x;
+  int delay_idx = MAX_DELAY*fft_length + blockIdx.x;
   cuFloatComplex delay_gain = delay_lut[delay_idx];
   int gains_idx = (threadIdx.x*fft_length*num_ffts) + blockIdx.x;
   int i;
   for (i=0; i<num_ffts; i++)  // each FFT will use the same delay gain gradient
   {
-    //delay_gains[gains_idx + i*fft_length] = delay_gain;
-    delay_gains[gains_idx + i*fft_length] = make_cuFloatComplex(1.0, 0.0);
+    delay_gains[gains_idx + i*fft_length] = delay_gain;
+    //delay_gains[gains_idx + i*fft_length] = make_cuFloatComplex(1.0, 0.0);
   }
   return;
 }
