@@ -276,7 +276,7 @@ __global__ void mwax_lookup_delay_gains_delay_pairs_kernel(const int32_t* delays
   int i;
   for (i=0; i<num_ffts; i++)  // each FFT will use the same delay gain gradient
   {
-    delay_gains[gains_idx + i*fft_length] = delay_gain;
+    //delay_gains[gains_idx + i*fft_length] = delay_gain;
   }
   return;
 }
