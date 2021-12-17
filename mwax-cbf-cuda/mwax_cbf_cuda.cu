@@ -279,8 +279,8 @@ __global__ void mwax_lookup_delay_gains_delay_pairs_kernel(const int32_t* delays
 {
   // blockIdx.x is fft_length (input freqs)
   // threadIdx.x is row (input antenna)
-  #define NUM_DELAYS 2001  // zero delay case and +- 1000 millisamples
-  #define MAX_DELAY ((NUM_DELAYS-1)/2)
+//  #define NUM_DELAYS 3001  // zero delay case and +- 1500 millisamples
+//  #define MAX_DELAY ((NUM_DELAYS-1)/2)
   // for now just use the start delay value, which is the first of each pair - hence 2*threadIdx
   // TO DO: interploate between start and end values to provide different delay values for each FFT
   int delay_val = delays[2*threadIdx.x];
