@@ -231,16 +231,29 @@ int mwax_fast_complex_multiply(float* input, float* output, unsigned size, cudaS
 
 __global__ void mwax_lookup_delay_gains_kernel(const int32_t* delays, const cuFloatComplex* delay_lut, cuFloatComplex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts)
 // assembles the complex float 2D array of delay_gains taken from the delay_lut, indexed with delays
+// for one entire block, which is of size (paths*fft_length*num_ffts)
+// - this version takes one set of delays and duplicates the same delay gains for each FFT of each signal path
+// Each thread handles a single signal path, one frequency bin.  It takes fft_length blocks to handle all frequency bins.
 {
-  // blockIdx.x is fft_length (input freqs)
-  // threadIdx.x is row (input antenna)
-  #define NUM_DELAYS 2001  // zero delay case and +- 1000 millisamples
+  // blockIdx.x is fft ordinate (frequency bin)
+  // threadIdx.x is row (input path)
+  #define NUM_DELAYS 3001  // zero delay case and +- 1500 millisamples
   #define MAX_DELAY ((NUM_DELAYS-1)/2)
-  int delay_idx = (delays[threadIdx.x] + MAX_DELAY)*fft_length + blockIdx.x;
+  // fetch the requested delay value for this path
+  int delay_val = delays[threadIdx.x];
+  // range check - set to zero if out of range
+  if ((delay_val < -MAX_DELAY) || (delay_val > MAX_DELAY)) delay_val = 0;
+  // retrieve the corresponding complex gain value from the LUT for this frequency bin
+  // - first form the address for the LUT - based on the requested delay and the index through the phase gradient in the LUT
+  int delay_idx = (delay_val + MAX_DELAY)*fft_length + blockIdx.x;  // add MAX_DELAY to get range 0 -> 2*MAX_DELAY
+  // look up the value
   cuFloatComplex delay_gain = delay_lut[delay_idx];
+  // form the output index for this frequency bin and path. Each path row is of length (fft_length*num_ffts)
   int gains_idx = (threadIdx.x*fft_length*num_ffts) + blockIdx.x;
+  // write the complex gain to the the delay_gains array, duplicating the same value for all the FFTs in the block
+  // i.e. use the same delay gain gradient for all FFTs
   int i;
-  for (i=0; i<num_ffts; i++)  // each FFT will use the same delay gain gradient
+  for (i=0; i<num_ffts; i++)
   {
     delay_gains[gains_idx + i*fft_length] = delay_gain;
   }
