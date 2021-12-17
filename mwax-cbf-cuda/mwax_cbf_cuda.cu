@@ -316,8 +316,8 @@ __global__ void mwax_lookup_and_apply_delay_gains_kernel(const int32_t* delays, 
 {
   // blockIdx.x is fft_length (input freqs)
   // threadIdx.x is row (input antenna)
-  #define NUM_DELAYS 2001  // zero delay case and +- 1000 millisamples
-  #define MAX_DELAY ((NUM_DELAYS-1)/2)
+  //#define NUM_DELAYS 3001  // zero delay case and +- 1000 millisamples
+  //#define MAX_DELAY ((NUM_DELAYS-1)/2)
   int delay_idx = 2*((delays[threadIdx.x] + MAX_DELAY)*fft_length + blockIdx.x);
   float delay_gain_real = delay_lut[delay_idx];
   float delay_gain_imag = delay_lut[delay_idx+1];
