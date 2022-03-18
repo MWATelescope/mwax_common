@@ -52,6 +52,7 @@ int is_mwax_mode_quit(const char *mode);
 #define HEADER_MC_PORT "MC_PORT"                                  // Multicast port that the data was addressed to
 #define HEADER_MWAX_U2S_VERSION "MWAX_U2S_VER"                    // mwax_u2s version
 #define HEADER_MWAX_DB2CORRELATE2DB_VERSION "MWAX_DB2CORR2DB_VER" // mwax_db2correlate2db version
+#define HEADER_MWAX_DB2MULTIBEAM2DB_VERSION "MWAX_DB2BEAM2DB_VER" // mwax_db2multibeam2db version
 
 //
 // Beamformer keywords within the PSRDADA Header
