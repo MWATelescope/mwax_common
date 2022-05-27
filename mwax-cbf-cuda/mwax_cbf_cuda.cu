@@ -5,6 +5,38 @@
 
 
 __global__ void byte_to_float_kernel(const char* input, float* output, unsigned size)
+// This version assumes that size does not exceed (max_blocks_per_dimension*max_threads_per_block)
+// GPUs from Compute Capability 3.0 onwards allow up to 2^31 - 1 blocks per grid, so this should
+// never be a constraint for MWAX.
+// If it ever becomes a concern, use byte_to_float_long
+{
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  output[idx] = (float)input[idx];
+  //output[idx] = ((float)input[idx]) * 0.01;    // use this if scaling required
+  return;
+}
+
+extern "C"
+int mwax_byte_to_float(char* input, float* output, unsigned size, cudaStream_t stream)
+{
+  int nthreads;
+  int nblocks;
+  if (size < 1024)
+    nthreads = size;
+  else
+    nthreads = 1024;
+  nblocks = (size + nthreads - 1) / nthreads;
+
+  byte_to_float_kernel<<<nblocks,nthreads,0,stream>>>(input,output,size);
+
+  return 0;
+}
+
+
+
+
+__global__ void byte_to_float_long_kernel(const char* input, float* output, unsigned size)
+// This version can handle very long sizes by looping if the size exceeds (num_blocks*num_threads_per_block)
 {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   unsigned ii;
@@ -17,7 +49,7 @@ __global__ void byte_to_float_kernel(const char* input, float* output, unsigned 
 }
 
 extern "C"
-int mwax_byte_to_float(char* input, float* output, unsigned size, cudaStream_t stream)
+int mwax_byte_to_float_long(char* input, float* output, unsigned size, cudaStream_t stream)
 {
   struct cudaDeviceProp props;
   cudaGetDeviceProperties(&props,0);
@@ -30,10 +62,12 @@ int mwax_byte_to_float(char* input, float* output, unsigned size, cudaStream_t s
   if (nblocks > max_blocks)
     nblocks = max_blocks;
 
-  byte_to_float_kernel<<<nblocks,nthreads,0,stream>>>(input,output,size);
+  byte_to_float_long_kernel<<<nblocks,nthreads,0,stream>>>(input,output,size);
 
   return 0;
 }
+
+
 
 
 
@@ -226,6 +260,53 @@ int mwax_fast_complex_multiply(float* input, float* output, unsigned size, cudaS
 
   return 0;
 }
+
+
+
+
+__global__ void mwax_lookup_all_delay_gains_kernel(const int16_t* delays, const cuFloatComplex* delay_lut, cuFloatComplex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts)
+// assembles the complex float 2D array of delay_gains taken from the delay_lut, indexed with delays
+// for one entire block, which is of size (paths*fft_length*num_ffts)
+// - this version assumes there is a full set of delays, i.e. individual values for every FFT of each signal path
+// Each thread handles a single signal path, one frequency bin of one FFT.  It takes (fft_length*num_ffts) blocks to handle all frequency  of all FFTs.
+// NOTE: Must be careful not to exceed the maximum number of blocks supported by CUDA, which is 65,535.
+{
+  // blockIdx.x is fft ordinate (frequency bin)
+  // threadIdx.x is row (input path)
+  #define NUM_DELAYS 4001  // zero delay case and +- 2000 millisamples
+  #define MAX_DELAY ((NUM_DELAYS-1)/2)
+  // fetch the requested delay value for this path
+  int delay_val = (int)delays[threadIdx.x];
+  // range check - set to zero if out of range
+  if ((delay_val < -MAX_DELAY) || (delay_val > MAX_DELAY)) delay_val = 0;
+  // retrieve the corresponding complex gain value from the LUT for this frequency bin
+  // - first form the address for the LUT - based on the requested delay and the index through the phase gradient in the LUT
+  int delay_idx = (delay_val + MAX_DELAY)*fft_length + blockIdx.x;  // add MAX_DELAY to get range 0 -> 2*MAX_DELAY
+  // look up the value
+  cuFloatComplex delay_gain = delay_lut[delay_idx];
+  // form the output index for this frequency bin and path. Each path row is of length (fft_length*num_ffts)
+  int gains_idx = (threadIdx.x*fft_length*num_ffts) + blockIdx.x;
+  // write the complex gain to the the delay_gains array, duplicating the same value for all the FFTs in the block
+  // i.e. use the same delay gain gradient for all FFTs
+  int i;
+  for (i=0; i<num_ffts; i++)
+  {
+    delay_gains[gains_idx + i*fft_length] = delay_gain;
+  }
+  return;
+}
+
+extern "C"
+int mwax_lookup_all_delay_gains(int16_t* delays, cuFloatComplex* delay_lut, cuFloatComplex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts, cudaStream_t stream)
+{
+  int nblocks = (int)(fft_length*num_ffts);
+  if (nblocks)
+  int nthreads = (int)paths;
+  mwax_lookup_all_delay_gains_kernel<<<nblocks,nthreads,0,stream>>>(delays,delay_lut,delay_gains,paths,fft_length,num_ffts);
+
+  return 0;
+}
+
 
 
 

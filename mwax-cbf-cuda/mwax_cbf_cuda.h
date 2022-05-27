@@ -3,6 +3,8 @@
 
 int mwax_byte_to_float(char* input, float* output, unsigned size, cudaStream_t stream);
 
+int mwax_byte_to_float_long(char* input, float* output, unsigned size, cudaStream_t stream);
+
 char * mwax_cuda_get_device_name (int index);
 
 int mwax_scalar_weight_complex(float weight, float* output, unsigned size, cudaStream_t stream);
