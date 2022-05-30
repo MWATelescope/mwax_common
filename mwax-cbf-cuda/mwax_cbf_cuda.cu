@@ -263,6 +263,8 @@ int mwax_fast_complex_multiply(float* input, float* output, unsigned size, cudaS
 
 
 
+#define NUM_DELAYS 4001  // zero delay case and +- 2000 millisamples
+#define MAX_DELAY ((NUM_DELAYS-1)/2)
 
 __global__ void mwax_lookup_all_delay_gains_kernel(const int16_t* delays, const cuFloatComplex* delay_lut, cuFloatComplex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts)
 // assembles the complex float 2D array of delay_gains taken from the delay_lut, indexed with delays
@@ -273,8 +275,6 @@ __global__ void mwax_lookup_all_delay_gains_kernel(const int16_t* delays, const 
 {
   // blockIdx.x is fft ordinate (frequency bin)
   // threadIdx.x is row (input path)
-  #define NUM_DELAYS 4001  // zero delay case and +- 2000 millisamples
-  #define MAX_DELAY ((NUM_DELAYS-1)/2)
   // fetch the requested delay value for this path
   int delay_val = (int)delays[threadIdx.x];
   // range check - set to zero if out of range
@@ -318,8 +318,6 @@ __global__ void mwax_lookup_delay_gains_kernel(const int32_t* delays, const cuFl
 {
   // blockIdx.x is fft ordinate (frequency bin)
   // threadIdx.x is row (input path)
-  #define NUM_DELAYS 3001  // zero delay case and +- 1500 millisamples
-  #define MAX_DELAY ((NUM_DELAYS-1)/2)
   // fetch the requested delay value for this path
   int delay_val = delays[threadIdx.x];
   // range check - set to zero if out of range
