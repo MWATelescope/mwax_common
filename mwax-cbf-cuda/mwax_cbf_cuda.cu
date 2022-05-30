@@ -300,7 +300,6 @@ extern "C"
 int mwax_lookup_all_delay_gains(int16_t* delays, cuFloatComplex* delay_lut, cuFloatComplex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts, cudaStream_t stream)
 {
   int nblocks = (int)(fft_length*num_ffts);
-  if (nblocks)
   int nthreads = (int)paths;
   mwax_lookup_all_delay_gains_kernel<<<nblocks,nthreads,0,stream>>>(delays,delay_lut,delay_gains,paths,fft_length,num_ffts);
 
