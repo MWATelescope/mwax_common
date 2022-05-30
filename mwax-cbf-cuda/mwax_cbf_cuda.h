@@ -2,19 +2,8 @@
 #include <inttypes.h>
 
 int mwax_byte_to_float(char* input, float* output, unsigned size, cudaStream_t stream);
-
-int mwax_byte_to_float_long(char* input, float* output, unsigned size, cudaStream_t stream);
-
 char * mwax_cuda_get_device_name (int index);
-
-int mwax_scalar_weight_complex(float weight, float* output, unsigned size, cudaStream_t stream);
-
-int mwax_vector_weight_complex(float* weights, float* output, unsigned size, cudaStream_t stream);
-
 int mwax_array_weight_complex(float* weights, float* output, unsigned rows, unsigned columns, cudaStream_t stream);
-
-int mwax_complex_multiply(float* input, float* output, unsigned size, cudaStream_t stream);
-
 int mwax_fast_complex_multiply(float* input, float* output, unsigned size, cudaStream_t stream);
 
 int mwax_lookup_delay_gains(int32_t* delays, float complex* delay_lut, float complex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts, cudaStream_t stream);
@@ -50,3 +39,13 @@ int slow_mwax_aggregate_promote_and_weight(float* weights, char* input, float* o
 int mwax_aggregate_and_promote(char* input, float* output, unsigned rows, unsigned columns, unsigned num_to_aggregate, unsigned aggregate_count, cudaStream_t stream);
 
 int mwax_aggregate_promote_and_weight(float* weights, char* input, float* output, unsigned rows, unsigned columns, unsigned num_to_aggregate, unsigned aggregate_count, cudaStream_t stream);
+
+
+// Functions not currently used by MWAX correlator
+
+int mwax_byte_to_float_long(char* input, float* output, unsigned size, cudaStream_t stream);
+int mwax_scalar_weight_complex(float weight, float* output, unsigned size, cudaStream_t stream);
+int mwax_vector_weight_complex(float* weights, float* output, unsigned size, cudaStream_t stream);
+int mwax_complex_multiply(float* input, float* output, unsigned size, cudaStream_t stream);
+int mwax_complex_multiply_long(float* input, float* output, unsigned size, cudaStream_t stream);
+int mwax_fast_complex_multiply_long(float* input, float* output, unsigned size, cudaStream_t stream);

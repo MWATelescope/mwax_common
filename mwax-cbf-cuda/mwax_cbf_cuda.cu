@@ -35,42 +35,6 @@ int mwax_byte_to_float(char* input, float* output, unsigned size, cudaStream_t s
 
 
 
-__global__ void byte_to_float_long_kernel(const char* input, float* output, unsigned size)
-// This version can handle very long sizes by looping if the size exceeds (num_blocks*num_threads_per_block)
-{
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  unsigned ii;
-  for (ii=idx; ii<size; ii+=gridDim.x*blockDim.x)
-  {
-//    output[ii] = ((float) input[ii]) / 127.0;  // use this if scaling required
-    output[ii] = (float)input[ii];
-  }
-  return;
-}
-
-extern "C"
-int mwax_byte_to_float_long(char* input, float* output, unsigned size, cudaStream_t stream)
-{
-  struct cudaDeviceProp props;
-  cudaGetDeviceProperties(&props,0);
-  int nthreads = props.maxThreadsPerBlock;
-  int max_blocks = props.maxGridSize[0];
-  int nblocks;
-  if (size < nthreads)
-    nthreads = size;
-  nblocks = (size + nthreads - 1) / nthreads;
-  if (nblocks > max_blocks)
-    nblocks = max_blocks;
-
-  byte_to_float_long_kernel<<<nblocks,nthreads,0,stream>>>(input,output,size);
-
-  return 0;
-}
-
-
-
-
-
 extern "C"
 char * mwax_cuda_get_device_name (int index)
 {
@@ -87,81 +51,9 @@ char * mwax_cuda_get_device_name (int index)
 
 
 
-__global__ void scalar_weight_complex_kernel(const float weight, float* output, unsigned size)
-// multiplies all elements of complex float vector in output by the same scalar weight value and
-// places the results in output. weight is a float multiplier, size is the number of complex samples.
-{
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  unsigned ii, jj;
-  for (ii=idx; ii<size; ii+=(gridDim.x*blockDim.x))
-  {
-    jj = 2*ii;
-    output[jj] = output[jj]*weight;
-    output[jj+1] = output[jj+1]*weight;
-  }
-  return;
-}
-
-extern "C"
-int mwax_scalar_weight_complex(float weight, float* output, unsigned size, cudaStream_t stream)
-{
-  struct cudaDeviceProp props;
-  cudaGetDeviceProperties(&props,0);
-  int nthreads = props.maxThreadsPerBlock;
-  int max_blocks = props.maxGridSize[0];
-  int nblocks;
-  if (size < nthreads)
-    nthreads = size;
-  nblocks = (size + nthreads - 1) / nthreads;
-  if (nblocks > max_blocks)
-    nblocks = max_blocks;
-
-  scalar_weight_complex_kernel<<<nblocks,nthreads,0,stream>>>(weight,output,size);
-
-  return 0;
-}
-
-
-
-__global__ void vector_weight_complex_kernel(const float* weights, float* output, unsigned size)
-// multiplies the elements of the complex float vector in output by the values in vector weights
-// and places the results in output. size is the number of complex samples.  weight is a vector
-// of float multipliers, of length size.
-{
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  unsigned ii, jj;
-  for (ii=idx; ii<size; ii+=(gridDim.x*blockDim.x))
-  {
-    jj = 2*ii;
-    output[jj] = output[jj]*weights[ii];
-    output[jj+1] = output[jj+1]*weights[ii];
-  }
-  return;
-}
-
-extern "C"
-int mwax_vector_weight_complex(float* weights, float* output, unsigned size, cudaStream_t stream)
-{
-  struct cudaDeviceProp props;
-  cudaGetDeviceProperties(&props,0);
-  int nthreads = props.maxThreadsPerBlock;
-  int max_blocks = props.maxGridSize[0];
-  int nblocks;
-  if (size < nthreads)
-    nthreads = size;
-  nblocks = (size + nthreads - 1) / nthreads;
-  if (nblocks > max_blocks)
-    nblocks = max_blocks;
-
-  vector_weight_complex_kernel<<<nblocks,nthreads,0,stream>>>(weights,output,size);
-
-  return 0;
-}
-
-
 
 __global__ void array_weight_complex_kernel(const float* weights, float* output, unsigned rows, unsigned columns)
-// multiplies the elements of the complex float 2D array in output by the values in vector weights
+// Multiplies the elements of the complex float 2D array in output by the values in vector weights
 // and places the results in output. The same weight is applied to all elements of a row.
 // weight is a vector of float multipliers, of length rows.
 {
@@ -187,45 +79,10 @@ int mwax_array_weight_complex(float* weights, float* output, unsigned rows, unsi
 
 
 
-__global__ void complex_multiply_kernel(const float* input, float* output, unsigned size)
-// multiplies output by input and places in output, size is number of complex samples
-{
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  unsigned ii,jj;
-  float temp;
-  for (ii=idx; ii<size; ii+=(gridDim.x*blockDim.x))
-  {
-    jj = 2*ii;
-    temp = output[jj];
-    output[jj] = temp*input[jj] - output[jj+1]*input[jj+1];
-    output[jj+1] = output[jj+1]*input[jj] + temp*input[jj+1];
-  }
-  return;
-}
-
-extern "C"
-int mwax_complex_multiply(float* input, float* output, unsigned size, cudaStream_t stream)
-{
-  struct cudaDeviceProp props;
-  cudaGetDeviceProperties(&props,0);
-  int nthreads = props.maxThreadsPerBlock;
-  int max_blocks = props.maxGridSize[0];
-  int nblocks;
-  if (size < nthreads)
-    nthreads = size;
-  nblocks = (size + nthreads - 1) / nthreads;
-  if (nblocks > max_blocks)
-    nblocks = max_blocks;
-
-  complex_multiply_kernel<<<nblocks,nthreads,0,stream>>>(input,output,size);
-
-  return 0;
-}
-
-
 
 __global__ void fast_complex_multiply_kernel(const float* input, float* output, unsigned size)
-// multiplies output by input and places in output, size is number of complex samples
+// Multiplies output by input and places in output, size is number of complex samples
+// This version uses "fast complex multiplication", which involves fewer scalar multiplications than the basic approach
 {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   unsigned ii,jj;
@@ -245,16 +102,13 @@ __global__ void fast_complex_multiply_kernel(const float* input, float* output, 
 extern "C"
 int mwax_fast_complex_multiply(float* input, float* output, unsigned size, cudaStream_t stream)
 {
-  struct cudaDeviceProp props;
-  cudaGetDeviceProperties(&props,0);
-  int nthreads = props.maxThreadsPerBlock;
-  int max_blocks = props.maxGridSize[0];
+  int nthreads;
   int nblocks;
-  if (size < nthreads)
+  if (size < 1024)
     nthreads = size;
+  else
+    nthreads = 1024;
   nblocks = (size + nthreads - 1) / nthreads;
-  if (nblocks > max_blocks)
-    nblocks = max_blocks;
 
   fast_complex_multiply_kernel<<<nblocks,nthreads,0,stream>>>(input,output,size);
 
@@ -1201,6 +1055,238 @@ int mwax_aggregate_promote_and_weight(float* weights, char* input, float* output
 
   // call kernel with output already set to first write location and the extended row length already calculated
   aggregate_promote_and_weight_kernel<<<nblocks,nthreads,0,stream>>>(weights,input,(output+2*columns*aggregate_count),rows,columns,(2*columns*num_to_aggregate));
+
+  return 0;
+}
+
+
+
+
+/******************************************************************
+Assorted CUDA functions not currently used by the MWAX correlator
+*******************************************************************/
+
+
+__global__ void byte_to_float_long_kernel(const char* input, float* output, unsigned size)
+// This version can handle very long sizes by looping if the size exceeds (max_blocks_per_dimension*max_threads_per_block)
+{
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  unsigned ii;
+  for (ii=idx; ii<size; ii+=gridDim.x*blockDim.x)
+  {
+//    output[ii] = ((float) input[ii]) / 127.0;  // use this if scaling required
+    output[ii] = (float)input[ii];
+  }
+  return;
+}
+
+extern "C"
+int mwax_byte_to_float_long(char* input, float* output, unsigned size, cudaStream_t stream)
+{
+  struct cudaDeviceProp props;
+  cudaGetDeviceProperties(&props,0);
+  int nthreads = props.maxThreadsPerBlock;
+  int max_blocks = props.maxGridSize[0];
+  int nblocks;
+  if (size < nthreads)
+    nthreads = size;
+  nblocks = (size + nthreads - 1) / nthreads;
+  if (nblocks > max_blocks)
+    nblocks = max_blocks;
+
+  byte_to_float_long_kernel<<<nblocks,nthreads,0,stream>>>(input,output,size);
+
+  return 0;
+}
+
+
+
+
+__global__ void scalar_weight_complex_kernel(const float weight, float* output, unsigned size)
+// Multiplies all elements of complex float vector in output by the same scalar weight value and
+// places the results in output. weight is a float multiplier, size is the number of complex samples.
+{
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  unsigned ii, jj;
+  for (ii=idx; ii<size; ii+=(gridDim.x*blockDim.x))
+  {
+    jj = 2*ii;
+    output[jj] = output[jj]*weight;
+    output[jj+1] = output[jj+1]*weight;
+  }
+  return;
+}
+
+extern "C"
+int mwax_scalar_weight_complex(float weight, float* output, unsigned size, cudaStream_t stream)
+{
+  struct cudaDeviceProp props;
+  cudaGetDeviceProperties(&props,0);
+  int nthreads = props.maxThreadsPerBlock;
+  int max_blocks = props.maxGridSize[0];
+  int nblocks;
+  if (size < nthreads)
+    nthreads = size;
+  nblocks = (size + nthreads - 1) / nthreads;
+  if (nblocks > max_blocks)
+    nblocks = max_blocks;
+
+  scalar_weight_complex_kernel<<<nblocks,nthreads,0,stream>>>(weight,output,size);
+
+  return 0;
+}
+
+
+
+__global__ void vector_weight_complex_kernel(const float* weights, float* output, unsigned size)
+// Multiplies the elements of the complex float vector in output by the values in vector weights
+// and places the results in output. size is the number of complex samples.  weight is a vector
+// of float multipliers, of length size.
+{
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  unsigned ii, jj;
+  for (ii=idx; ii<size; ii+=(gridDim.x*blockDim.x))
+  {
+    jj = 2*ii;
+    output[jj] = output[jj]*weights[ii];
+    output[jj+1] = output[jj+1]*weights[ii];
+  }
+  return;
+}
+
+extern "C"
+int mwax_vector_weight_complex(float* weights, float* output, unsigned size, cudaStream_t stream)
+{
+  struct cudaDeviceProp props;
+  cudaGetDeviceProperties(&props,0);
+  int nthreads = props.maxThreadsPerBlock;
+  int max_blocks = props.maxGridSize[0];
+  int nblocks;
+  if (size < nthreads)
+    nthreads = size;
+  nblocks = (size + nthreads - 1) / nthreads;
+  if (nblocks > max_blocks)
+    nblocks = max_blocks;
+
+  vector_weight_complex_kernel<<<nblocks,nthreads,0,stream>>>(weights,output,size);
+
+  return 0;
+}
+
+
+
+
+__global__ void complex_multiply_kernel(const float* input, float* output, unsigned size)
+// Multiplies output by input and places in output, size is number of complex samples
+// This version assumes that size does not exceed (max_blocks_per_dimension*max_threads_per_block)
+// GPUs from Compute Capability 3.0 onwards allow up to 2^31 - 1 blocks per grid, so this should
+// never be a constraint for MWAX.
+// If it ever becomes a concern, use mwax_complex_multiply_long
+{
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  unsigned ii,jj;
+  float temp;
+  for (ii=idx; ii<size; ii+=(gridDim.x*blockDim.x))
+  {
+    jj = 2*ii;
+    temp = output[jj];
+    output[jj] = temp*input[jj] - output[jj+1]*input[jj+1];
+    output[jj+1] = output[jj+1]*input[jj] + temp*input[jj+1];
+  }
+  return;
+}
+
+extern "C"
+int mwax_complex_multiply(float* input, float* output, unsigned size, cudaStream_t stream)
+{
+  int nthreads;
+  int nblocks;
+  if (size < 1024)
+    nthreads = size;
+  else
+    nthreads = 1024;
+  nblocks = (size + nthreads - 1) / nthreads;
+
+  complex_multiply_kernel<<<nblocks,nthreads,0,stream>>>(input,output,size);
+
+  return 0;
+}
+
+
+
+
+__global__ void complex_multiply_long_kernel(const float* input, float* output, unsigned size)
+// Multiplies output by input and places in output, size is number of complex samples
+// This version can handle very long sizes by looping if the size exceeds (max_blocks_per_dimension*max_threads_per_block)
+{
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  unsigned ii,jj;
+  float temp;
+  for (ii=idx; ii<size; ii+=(gridDim.x*blockDim.x))
+  {
+    jj = 2*ii;
+    temp = output[jj];
+    output[jj] = temp*input[jj] - output[jj+1]*input[jj+1];
+    output[jj+1] = output[jj+1]*input[jj] + temp*input[jj+1];
+  }
+  return;
+}
+
+extern "C"
+int mwax_complex_multiply_long(float* input, float* output, unsigned size, cudaStream_t stream)
+{
+  struct cudaDeviceProp props;
+  cudaGetDeviceProperties(&props,0);
+  int nthreads = props.maxThreadsPerBlock;
+  int max_blocks = props.maxGridSize[0];
+  int nblocks;
+  if (size < nthreads)
+    nthreads = size;
+  nblocks = (size + nthreads - 1) / nthreads;
+  if (nblocks > max_blocks)
+    nblocks = max_blocks;
+
+  complex_multiply_long_kernel<<<nblocks,nthreads,0,stream>>>(input,output,size);
+
+  return 0;
+}
+
+
+
+
+__global__ void fast_complex_multiply_long_kernel(const float* input, float* output, unsigned size)
+// Multiplies output by input and places in output, size is number of complex samples
+{
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  unsigned ii,jj;
+  float temp1, temp2, temp3;
+  for (ii=idx; ii<size; ii+=(gridDim.x*blockDim.x))
+  {
+    jj = 2*ii;
+    temp1 = output[jj]*(input[jj] + input[jj+1]);
+    temp2 = input[jj+1]*(output[jj] + output[jj+1]);
+    temp3 = input[jj]*(output[jj+1] - output[jj]);
+    output[jj] = temp1 - temp2;
+    output[jj+1] = temp1 + temp3;
+  }
+  return;
+}
+
+extern "C"
+int mwax_fast_complex_multiply_long(float* input, float* output, unsigned size, cudaStream_t stream)
+{
+  struct cudaDeviceProp props;
+  cudaGetDeviceProperties(&props,0);
+  int nthreads = props.maxThreadsPerBlock;
+  int max_blocks = props.maxGridSize[0];
+  int nblocks;
+  if (size < nthreads)
+    nthreads = size;
+  nblocks = (size + nthreads - 1) / nthreads;
+  if (nblocks > max_blocks)
+    nblocks = max_blocks;
+
+  fast_complex_multiply_long_kernel<<<nblocks,nthreads,0,stream>>>(input,output,size);
 
   return 0;
 }
