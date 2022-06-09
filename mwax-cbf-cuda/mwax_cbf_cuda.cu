@@ -4,6 +4,11 @@
 #include <stdio.h>
 
 
+/******************************************************************************
+Assorted CUDA functions used by the MWAX correlator AND beamformer
+******************************************************************************/
+
+
 __global__ void byte_to_float_kernel(const char* input, float* output, unsigned size)
 // This version assumes that size does not exceed (max_blocks_per_dimension*max_threads_per_block)
 // GPUs from Compute Capability 3.0 onwards allow up to 2^31 - 1 blocks per grid, so this should
@@ -50,6 +55,11 @@ char * mwax_cuda_get_device_name (int index)
 }
 
 
+
+
+/******************************************************************************
+Assorted CUDA functions used by the MWAX correlator
+******************************************************************************/
 
 
 __global__ void array_weight_complex_kernel(const float* weights, float* output, unsigned rows, unsigned columns)
@@ -121,31 +131,33 @@ int mwax_fast_complex_multiply(float* input, float* output, unsigned size, cudaS
 #define MAX_DELAY ((NUM_DELAYS-1)/2)
 
 __global__ void mwax_lookup_all_delay_gains_kernel(const int16_t* delays, const cuFloatComplex* delay_lut, cuFloatComplex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts)
-// assembles the complex float 2D array of delay_gains taken from the delay_lut, indexed with delays
-// for one entire block, which is of size (paths*fft_length*num_ffts)
+// Assembles the complex float 2D array of delay_gains taken from the delay_lut, indexed with delays
+//    for all the FFTs of one data block, which is of size [paths * (fft_length*num_ffts_per_block)]
 // - this version assumes there is a full set of delays, i.e. individual values for every FFT of each signal path
-// Each thread handles a single signal path, one frequency bin of one FFT.  It takes (fft_length*num_ffts) blocks to handle all frequency  of all FFTs.
-// NOTE: Must be careful not to exceed the maximum number of blocks supported by CUDA, which is 65,535.
+// - it assumes the delays for the current data block start at the address passed to the function, i.e. "delays"
+// Each thread handles a single signal path and all the FFTs of a data block, with a different CUDA block for each frequency bin of the FFT.
 {
-  // blockIdx.x is fft ordinate (frequency bin)
+  // blockIdx.x is FFT ordinate (frequency bin)
   // threadIdx.x is row (input path)
-  // fetch the requested delay value for this path
-  int delay_val = (int)delays[threadIdx.x];
-  // range check - set to zero if out of range
-  if ((delay_val < -MAX_DELAY) || (delay_val > MAX_DELAY)) delay_val = 0;
-  // retrieve the corresponding complex gain value from the LUT for this frequency bin
-  // - first form the address for the LUT - based on the requested delay and the index through the phase gradient in the LUT
-  int delay_idx = (delay_val + MAX_DELAY)*fft_length + blockIdx.x;  // add MAX_DELAY to get range 0 -> 2*MAX_DELAY
-  // look up the value
-  cuFloatComplex delay_gain = delay_lut[delay_idx];
-  // form the output index for this frequency bin and path. Each path row is of length (fft_length*num_ffts)
-  int gains_idx = (threadIdx.x*fft_length*num_ffts) + blockIdx.x;
-  // write the complex gain to the the delay_gains array, duplicating the same value for all the FFTs in the block
-  // i.e. use the same delay gain gradient for all FFTs
+  // loop through all FFTs in the data block
   int i;
+  int delay_val;
+  int delay_idx;
+  cuFloatComplex delay_gain;
+  int row_length = fft_length*num_ffts;
+  int gains_idx;
+
   for (i=0; i<num_ffts; i++)
   {
-    delay_gains[gains_idx + i*fft_length] = delay_gain;
+    delay_val = (int)delays[threadIdx.x + i*paths];   // fetch the requested delay value for this path and FFT
+    if ((delay_val < -MAX_DELAY) || (delay_val > MAX_DELAY)) delay_val = 0;    // range check - set to zero if out of range
+    // retrieve the corresponding complex gain value from the LUT for this frequency bin
+    // - first form the address for the LUT - based on the requested delay and the index through the phase gradient in the LUT
+    delay_idx = (delay_val + MAX_DELAY)*fft_length + blockIdx.x;  // add MAX_DELAY to get range 0 -> 2*MAX_DELAY
+    delay_gain = delay_lut[delay_idx];    // look up the value
+    // form the output index for this frequency bin, FFT and path. Each path row is of length (fft_length*num_ffts)
+    gains_idx = (threadIdx.x*row_length) + i*fft_length + blockIdx.x;
+    delay_gains[gains_idx] = delay_gain;   // write the complex gain to the the delay_gains array
   }
   return;
 }
@@ -153,131 +165,13 @@ __global__ void mwax_lookup_all_delay_gains_kernel(const int16_t* delays, const 
 extern "C"
 int mwax_lookup_all_delay_gains(int16_t* delays, cuFloatComplex* delay_lut, cuFloatComplex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts, cudaStream_t stream)
 {
-  int nblocks = (int)(fft_length*num_ffts);
+  int nblocks = (int)fft_length;
   int nthreads = (int)paths;
   mwax_lookup_all_delay_gains_kernel<<<nblocks,nthreads,0,stream>>>(delays,delay_lut,delay_gains,paths,fft_length,num_ffts);
 
   return 0;
 }
 
-
-
-
-__global__ void mwax_lookup_delay_gains_kernel(const int32_t* delays, const cuFloatComplex* delay_lut, cuFloatComplex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts)
-// assembles the complex float 2D array of delay_gains taken from the delay_lut, indexed with delays
-// for one entire block, which is of size (paths*fft_length*num_ffts)
-// - this version takes one set of delays and duplicates the same delay gains for each FFT of each signal path
-// Each thread handles a single signal path, one frequency bin.  It takes fft_length blocks to handle all frequency bins.
-{
-  // blockIdx.x is fft ordinate (frequency bin)
-  // threadIdx.x is row (input path)
-  // fetch the requested delay value for this path
-  int delay_val = delays[threadIdx.x];
-  // range check - set to zero if out of range
-  if ((delay_val < -MAX_DELAY) || (delay_val > MAX_DELAY)) delay_val = 0;
-  // retrieve the corresponding complex gain value from the LUT for this frequency bin
-  // - first form the address for the LUT - based on the requested delay and the index through the phase gradient in the LUT
-  int delay_idx = (delay_val + MAX_DELAY)*fft_length + blockIdx.x;  // add MAX_DELAY to get range 0 -> 2*MAX_DELAY
-  // look up the value
-  cuFloatComplex delay_gain = delay_lut[delay_idx];
-  // form the output index for this frequency bin and path. Each path row is of length (fft_length*num_ffts)
-  int gains_idx = (threadIdx.x*fft_length*num_ffts) + blockIdx.x;
-  // write the complex gain to the the delay_gains array, duplicating the same value for all the FFTs in the block
-  // i.e. use the same delay gain gradient for all FFTs
-  int i;
-  for (i=0; i<num_ffts; i++)
-  {
-    delay_gains[gains_idx + i*fft_length] = delay_gain;
-  }
-  return;
-}
-
-extern "C"
-int mwax_lookup_delay_gains(int32_t* delays, cuFloatComplex* delay_lut, cuFloatComplex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts, cudaStream_t stream)
-{
-  int nblocks = (int)fft_length;
-  int nthreads = (int)paths;
-  mwax_lookup_delay_gains_kernel<<<nblocks,nthreads,0,stream>>>(delays,delay_lut,delay_gains,paths,fft_length,num_ffts);
-
-  return 0;
-}
-
-
-
-
-__global__ void mwax_lookup_delay_gains_delay_pairs_kernel(const int32_t* delays, const cuFloatComplex* delay_lut, cuFloatComplex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts)
-// assembles the complex float 2D array of delay_gains taken from the delay_lut, indexed with delays
-// delays provided in the form of start-end delay pairs for each block
-{
-  // blockIdx.x is fft_length (input freqs)
-  // threadIdx.x is row (input antenna)
-//  #define NUM_DELAYS 3001  // zero delay case and +- 1500 millisamples
-//  #define MAX_DELAY ((NUM_DELAYS-1)/2)
-  // for now just use the start delay value, which is the first of each pair - hence 2*threadIdx
-  // TO DO: interploate between start and end values to provide different delay values for each FFT
-  int delay_val = delays[2*threadIdx.x];
-  if ((delay_val < -MAX_DELAY) || (delay_val > MAX_DELAY)) delay_val = 0;
-  int delay_idx = (delay_val + MAX_DELAY)*fft_length + blockIdx.x;
-  cuFloatComplex delay_gain = delay_lut[delay_idx];
-  int gains_idx = (threadIdx.x*fft_length*num_ffts) + blockIdx.x;
-  int i;
-  for (i=0; i<num_ffts; i++)  // each FFT will use the same delay gain gradient
-  {
-    delay_gains[gains_idx + i*fft_length] = delay_gain;
-    //delay_gains[gains_idx + i*fft_length] = make_cuFloatComplex(1.0, 0.0);
-  }
-  return;
-}
-
-extern "C"
-int mwax_lookup_delay_gains_delay_pairs(int32_t* delays, cuFloatComplex* delay_lut, cuFloatComplex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts, cudaStream_t stream)
-{
-  int nblocks = (int)fft_length;
-  int nthreads = (int)paths;
-  mwax_lookup_delay_gains_delay_pairs_kernel<<<nblocks,nthreads,0,stream>>>(delays,delay_lut,delay_gains,paths,fft_length,num_ffts);
-
-  return 0;
-}
-
-
-
-
-__global__ void mwax_lookup_and_apply_delay_gains_kernel(const int32_t* delays, const float* delay_lut, float* input, unsigned paths, unsigned fft_length, unsigned num_ffts)
-// applies delay gains to the complex float 2D array of input, using values taken from the delay_lut, indexed with delays
-// floats are used to allow fast complex multiply algorithm
-{
-  // blockIdx.x is fft_length (input freqs)
-  // threadIdx.x is row (input antenna)
-  //#define NUM_DELAYS 3001  // zero delay case and +- 1000 millisamples
-  //#define MAX_DELAY ((NUM_DELAYS-1)/2)
-  int delay_idx = 2*((delays[threadIdx.x] + MAX_DELAY)*fft_length + blockIdx.x);
-  float delay_gain_real = delay_lut[delay_idx];
-  float delay_gain_imag = delay_lut[delay_idx+1];
-  int input_idx = 2*((threadIdx.x*fft_length*num_ffts) + blockIdx.x);
-  float input_real = input[input_idx];
-  float input_imag = input[input_idx+1];
-  float temp1 = input_real*(delay_gain_real + delay_gain_imag);  // form intermediate products of fast complex multiply
-  float temp2 = delay_gain_imag*(input_real + input_imag);
-  float temp3 = delay_gain_real*(input_imag - input_real);
-
-  int i;
-  for (i=0; i<(2*num_ffts); i+=2)  // each FFT will use the same delay gain gradient
-  {
-    input[input_idx + i*fft_length] = temp1 - temp2;
-    input[input_idx + i*fft_length + 1] = temp1 + temp3;
-  }
-  return;
-}
-
-extern "C"
-int mwax_lookup_and_apply_delay_gains(int32_t* delays, float* delay_lut, float* input, unsigned paths, unsigned fft_length, unsigned num_ffts, cudaStream_t stream)
-{
-  int nblocks = (int)fft_length;
-  int nthreads = (int)paths;
-  mwax_lookup_and_apply_delay_gains_kernel<<<nblocks,nthreads,0,stream>>>(delays,delay_lut,input,paths,fft_length,num_ffts);
-
-  return 0;
-}
 
 
 
@@ -379,64 +273,6 @@ int mwax_detranspose_from_xGPU_and_weight(float* weights, float* input, float* o
 
 
 
-#if 0
-// MORE THREADS VERSION - no faster than nthreads=128
-__global__ void xGPU_channel_average_kernel(const float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned num_output_channels, unsigned fscrunch_factor)
-{
-  // blockDim threads per block: each thread sums all values (real or imag floats) for one output channel
-  // blockIdx.x is a chunk of visibility columns (total columns = num_visibility_samps_per_chan)
-  // threadIdx.x is index within a block
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;  // column index
-  int read_idx,write_idx;
-  float tempSum;
-  int ii,j,k;
-
-  for (ii=idx; ii<num_visibility_samps_per_chan; ii+=gridDim.x*blockDim.x)
-  {
-    read_idx = ii;
-    write_idx = ii;
-    for (j=0; j<num_output_channels; j++)
-    {
-      tempSum = input[read_idx];  // first row of this channel
-      read_idx += num_visibility_samps_per_chan;  // advance to next row
-      for (k=1; k<fscrunch_factor; k++)  // sum remaining rows
-      {
-        tempSum += input[read_idx];  // sum in this row
-        read_idx += num_visibility_samps_per_chan;  // advance to next row
-      }
-      output[write_idx] = tempSum;  // channel summed - write to this row
-      write_idx += num_visibility_samps_per_chan;  // advance to next output row
-    }
-  }
-  return;
-}
-
-extern "C"
-int xGPU_channel_average(float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned num_input_channels, unsigned fscrunch_factor, cudaStream_t stream)
-{
-  struct cudaDeviceProp props;
-  cudaGetDeviceProperties(&props,0);
-  int nthreads = props.maxThreadsPerBlock;
-  int max_blocks = props.maxGridSize[0];
-  int nblocks;
-  if (num_visibility_samps_per_chan/nthreads > max_blocks)
-    nblocks = max_blocks;
-  else
-    nblocks = (int)num_visibility_samps_per_chan/nthreads;
-
-  if (num_input_channels % fscrunch_factor)
-  {
-    printf("xGPU_channel_average: ERROR: number of input channels not an integer multiple of averaging factor\n");
-    return -1;
-  }
-  unsigned num_output_channels = num_input_channels/fscrunch_factor;
-
-  xGPU_channel_average_kernel<<<nblocks,nthreads,0,stream>>>(input,output,num_visibility_samps_per_chan,num_output_channels,fscrunch_factor);
-
-  return 0;
-}
-#endif
-
 
 #if 1
 // FAST VERSION - nthreads=128
@@ -489,65 +325,6 @@ int xGPU_channel_average(float* input, float* output, unsigned num_visibility_sa
 }
 #endif
 
-
-#if 0
-// SLOW VERSION - that seems to work
-
-__global__ void xGPU_channel_average_kernel(const float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned fscrunch_factor)
-{
-  // blockIdx.x is column (baselines - length num_visibility_samps_per_chan)
-  // threadIdx.x is row (output channel)
-  int read_idx = blockIdx.x + (threadIdx.x * fscrunch_factor * num_visibility_samps_per_chan);
-  float tempSum;
-  int k;
-  for (k=0; k<fscrunch_factor; k++)
-  {
-    tempSum += input[read_idx];
-    read_idx += num_visibility_samps_per_chan;
-  }
-  output[blockIdx.x + (threadIdx.x * num_visibility_samps_per_chan)] = tempSum;
-  return;
-}
-#endif
-
-#if 0
-// REALLY SLOW VERSION - that seems to work
-
-__global__ void xGPU_channel_average_kernel(const float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned fscrunch_factor)
-{
-  // blockIdx.x is column (baselines - length num_visibility_samps_per_chan)
-  // threadIdx.x is row (output channel)
-  // TO DO: speed up by changing multiplications in index calculations to sums around the FOR loop
-  int k;
-  for (k=0; k<fscrunch_factor; k++)
-  {
-    output[blockIdx.x + (threadIdx.x * num_visibility_samps_per_chan)] += input[blockIdx.x + ((fscrunch_factor*threadIdx.x + k) * num_visibility_samps_per_chan)];
-  }
-  return;
-}
-#endif
-
-#if 0
-extern "C"
-int xGPU_channel_average(float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned num_input_channels, unsigned fscrunch_factor, cudaStream_t stream)
-{
-  if (num_input_channels % fscrunch_factor)
-  {
-    printf("xGPU_channel_average: ERROR: number of input channels not an integer multiple of averaging factor\n");
-    return -1;
-  }
-
-  int nblocks = (int)num_visibility_samps_per_chan;
-  int nthreads = (int)(num_input_channels/fscrunch_factor);  // number of output channels
-
-  // clear all outputs
-  cudaMemset( output, 0.0, (num_visibility_samps_per_chan*num_input_channels*4) );
-
-  xGPU_channel_average_kernel<<<nblocks,nthreads,0,stream>>>(input,output,num_visibility_samps_per_chan,fscrunch_factor);
-
-  return 0;
-}
-#endif
 
 
 
@@ -789,6 +566,11 @@ else
 }
 
 
+
+
+/******************************************************************************
+Assorted CUDA functions used by the MWAX beamformer
+******************************************************************************/
 
 
 __global__ void beamform_summation_kernel(const float* input, float* output, unsigned num_antennas, unsigned num_samples_per_antenna)
@@ -1062,9 +844,9 @@ int mwax_aggregate_promote_and_weight(float* weights, char* input, float* output
 
 
 
-/******************************************************************
-Assorted CUDA functions not currently used by the MWAX correlator
-*******************************************************************/
+/******************************************************************************
+Assorted CUDA functions not currently used by the MWAX correlator or beamformer
+******************************************************************************/
 
 
 __global__ void byte_to_float_long_kernel(const char* input, float* output, unsigned size)
@@ -1290,3 +1072,245 @@ int mwax_fast_complex_multiply_long(float* input, float* output, unsigned size, 
 
   return 0;
 }
+
+
+
+
+__global__ void mwax_lookup_delay_gains_kernel(const int32_t* delays, const cuFloatComplex* delay_lut, cuFloatComplex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts)
+// assembles the complex float 2D array of delay_gains taken from the delay_lut, indexed with delays
+// for one entire block, which is of size (paths*fft_length*num_ffts)
+// - this version takes one set of delays and duplicates the same delay gains for each FFT of each signal path
+// Each thread handles a single signal path, one frequency bin.  It takes fft_length blocks to handle all frequency bins.
+{
+  // blockIdx.x is fft ordinate (frequency bin)
+  // threadIdx.x is row (input path)
+  // fetch the requested delay value for this path
+  int delay_val = delays[threadIdx.x];
+  // range check - set to zero if out of range
+  if ((delay_val < -MAX_DELAY) || (delay_val > MAX_DELAY)) delay_val = 0;
+  // retrieve the corresponding complex gain value from the LUT for this frequency bin
+  // - first form the address for the LUT - based on the requested delay and the index through the phase gradient in the LUT
+  int delay_idx = (delay_val + MAX_DELAY)*fft_length + blockIdx.x;  // add MAX_DELAY to get range 0 -> 2*MAX_DELAY
+  // look up the value
+  cuFloatComplex delay_gain = delay_lut[delay_idx];
+  // form the output index for this frequency bin and path. Each path row is of length (fft_length*num_ffts)
+  int gains_idx = (threadIdx.x*fft_length*num_ffts) + blockIdx.x;
+  // write the complex gain to the the delay_gains array, duplicating the same value for all the FFTs in the block
+  // i.e. use the same delay gain gradient for all FFTs
+  int i;
+  for (i=0; i<num_ffts; i++)
+  {
+    delay_gains[gains_idx + i*fft_length] = delay_gain;
+  }
+  return;
+}
+
+extern "C"
+int mwax_lookup_delay_gains(int32_t* delays, cuFloatComplex* delay_lut, cuFloatComplex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts, cudaStream_t stream)
+{
+  int nblocks = (int)fft_length;
+  int nthreads = (int)paths;
+  mwax_lookup_delay_gains_kernel<<<nblocks,nthreads,0,stream>>>(delays,delay_lut,delay_gains,paths,fft_length,num_ffts);
+
+  return 0;
+}
+
+
+
+
+__global__ void mwax_lookup_delay_gains_delay_pairs_kernel(const int32_t* delays, const cuFloatComplex* delay_lut, cuFloatComplex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts)
+// assembles the complex float 2D array of delay_gains taken from the delay_lut, indexed with delays
+// delays provided in the form of start-end delay pairs for each block
+{
+  // blockIdx.x is fft_length (input freqs)
+  // threadIdx.x is row (input antenna)
+//  #define NUM_DELAYS 3001  // zero delay case and +- 1500 millisamples
+//  #define MAX_DELAY ((NUM_DELAYS-1)/2)
+  // for now just use the start delay value, which is the first of each pair - hence 2*threadIdx
+  // TO DO: interploate between start and end values to provide different delay values for each FFT
+  int delay_val = delays[2*threadIdx.x];
+  if ((delay_val < -MAX_DELAY) || (delay_val > MAX_DELAY)) delay_val = 0;
+  int delay_idx = (delay_val + MAX_DELAY)*fft_length + blockIdx.x;
+  cuFloatComplex delay_gain = delay_lut[delay_idx];
+  int gains_idx = (threadIdx.x*fft_length*num_ffts) + blockIdx.x;
+  int i;
+  for (i=0; i<num_ffts; i++)  // each FFT will use the same delay gain gradient
+  {
+    delay_gains[gains_idx + i*fft_length] = delay_gain;
+    //delay_gains[gains_idx + i*fft_length] = make_cuFloatComplex(1.0, 0.0);
+  }
+  return;
+}
+
+extern "C"
+int mwax_lookup_delay_gains_delay_pairs(int32_t* delays, cuFloatComplex* delay_lut, cuFloatComplex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts, cudaStream_t stream)
+{
+  int nblocks = (int)fft_length;
+  int nthreads = (int)paths;
+  mwax_lookup_delay_gains_delay_pairs_kernel<<<nblocks,nthreads,0,stream>>>(delays,delay_lut,delay_gains,paths,fft_length,num_ffts);
+
+  return 0;
+}
+
+
+
+
+__global__ void mwax_lookup_and_apply_delay_gains_kernel(const int32_t* delays, const float* delay_lut, float* input, unsigned paths, unsigned fft_length, unsigned num_ffts)
+// applies delay gains to the complex float 2D array of input, using values taken from the delay_lut, indexed with delays
+// floats are used to allow fast complex multiply algorithm
+{
+  // blockIdx.x is fft_length (input freqs)
+  // threadIdx.x is row (input antenna)
+  //#define NUM_DELAYS 3001  // zero delay case and +- 1000 millisamples
+  //#define MAX_DELAY ((NUM_DELAYS-1)/2)
+  int delay_idx = 2*((delays[threadIdx.x] + MAX_DELAY)*fft_length + blockIdx.x);
+  float delay_gain_real = delay_lut[delay_idx];
+  float delay_gain_imag = delay_lut[delay_idx+1];
+  int input_idx = 2*((threadIdx.x*fft_length*num_ffts) + blockIdx.x);
+  float input_real = input[input_idx];
+  float input_imag = input[input_idx+1];
+  float temp1 = input_real*(delay_gain_real + delay_gain_imag);  // form intermediate products of fast complex multiply
+  float temp2 = delay_gain_imag*(input_real + input_imag);
+  float temp3 = delay_gain_real*(input_imag - input_real);
+
+  int i;
+  for (i=0; i<(2*num_ffts); i+=2)  // each FFT will use the same delay gain gradient
+  {
+    input[input_idx + i*fft_length] = temp1 - temp2;
+    input[input_idx + i*fft_length + 1] = temp1 + temp3;
+  }
+  return;
+}
+
+extern "C"
+int mwax_lookup_and_apply_delay_gains(int32_t* delays, float* delay_lut, float* input, unsigned paths, unsigned fft_length, unsigned num_ffts, cudaStream_t stream)
+{
+  int nblocks = (int)fft_length;
+  int nthreads = (int)paths;
+  mwax_lookup_and_apply_delay_gains_kernel<<<nblocks,nthreads,0,stream>>>(delays,delay_lut,input,paths,fft_length,num_ffts);
+
+  return 0;
+}
+
+
+
+
+#if 0
+// MORE THREADS VERSION - no faster than nthreads=128
+__global__ void xGPU_channel_average_kernel(const float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned num_output_channels, unsigned fscrunch_factor)
+{
+  // blockDim threads per block: each thread sums all values (real or imag floats) for one output channel
+  // blockIdx.x is a chunk of visibility columns (total columns = num_visibility_samps_per_chan)
+  // threadIdx.x is index within a block
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;  // column index
+  int read_idx,write_idx;
+  float tempSum;
+  int ii,j,k;
+
+  for (ii=idx; ii<num_visibility_samps_per_chan; ii+=gridDim.x*blockDim.x)
+  {
+    read_idx = ii;
+    write_idx = ii;
+    for (j=0; j<num_output_channels; j++)
+    {
+      tempSum = input[read_idx];  // first row of this channel
+      read_idx += num_visibility_samps_per_chan;  // advance to next row
+      for (k=1; k<fscrunch_factor; k++)  // sum remaining rows
+      {
+        tempSum += input[read_idx];  // sum in this row
+        read_idx += num_visibility_samps_per_chan;  // advance to next row
+      }
+      output[write_idx] = tempSum;  // channel summed - write to this row
+      write_idx += num_visibility_samps_per_chan;  // advance to next output row
+    }
+  }
+  return;
+}
+
+extern "C"
+int xGPU_channel_average(float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned num_input_channels, unsigned fscrunch_factor, cudaStream_t stream)
+{
+  struct cudaDeviceProp props;
+  cudaGetDeviceProperties(&props,0);
+  int nthreads = props.maxThreadsPerBlock;
+  int max_blocks = props.maxGridSize[0];
+  int nblocks;
+  if (num_visibility_samps_per_chan/nthreads > max_blocks)
+    nblocks = max_blocks;
+  else
+    nblocks = (int)num_visibility_samps_per_chan/nthreads;
+
+  if (num_input_channels % fscrunch_factor)
+  {
+    printf("xGPU_channel_average: ERROR: number of input channels not an integer multiple of averaging factor\n");
+    return -1;
+  }
+  unsigned num_output_channels = num_input_channels/fscrunch_factor;
+
+  xGPU_channel_average_kernel<<<nblocks,nthreads,0,stream>>>(input,output,num_visibility_samps_per_chan,num_output_channels,fscrunch_factor);
+
+  return 0;
+}
+#endif
+
+
+#if 0
+// SLOW VERSION - that seems to work
+
+__global__ void xGPU_channel_average_kernel(const float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned fscrunch_factor)
+{
+  // blockIdx.x is column (baselines - length num_visibility_samps_per_chan)
+  // threadIdx.x is row (output channel)
+  int read_idx = blockIdx.x + (threadIdx.x * fscrunch_factor * num_visibility_samps_per_chan);
+  float tempSum;
+  int k;
+  for (k=0; k<fscrunch_factor; k++)
+  {
+    tempSum += input[read_idx];
+    read_idx += num_visibility_samps_per_chan;
+  }
+  output[blockIdx.x + (threadIdx.x * num_visibility_samps_per_chan)] = tempSum;
+  return;
+}
+#endif
+
+
+#if 0
+// REALLY SLOW VERSION - that seems to work
+
+__global__ void xGPU_channel_average_kernel(const float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned fscrunch_factor)
+{
+  // blockIdx.x is column (baselines - length num_visibility_samps_per_chan)
+  // threadIdx.x is row (output channel)
+  // TO DO: speed up by changing multiplications in index calculations to sums around the FOR loop
+  int k;
+  for (k=0; k<fscrunch_factor; k++)
+  {
+    output[blockIdx.x + (threadIdx.x * num_visibility_samps_per_chan)] += input[blockIdx.x + ((fscrunch_factor*threadIdx.x + k) * num_visibility_samps_per_chan)];
+  }
+  return;
+}
+#endif
+
+
+#if 0
+extern "C"
+int xGPU_channel_average(float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned num_input_channels, unsigned fscrunch_factor, cudaStream_t stream)
+{
+  if (num_input_channels % fscrunch_factor)
+  {
+    printf("xGPU_channel_average: ERROR: number of input channels not an integer multiple of averaging factor\n");
+    return -1;
+  }
+
+  int nblocks = (int)num_visibility_samps_per_chan;
+  int nthreads = (int)(num_input_channels/fscrunch_factor);  // number of output channels
+
+  // clear all outputs
+  cudaMemset( output, 0.0, (num_visibility_samps_per_chan*num_input_channels*4) );
+
+  xGPU_channel_average_kernel<<<nblocks,nthreads,0,stream>>>(input,output,num_visibility_samps_per_chan,fscrunch_factor);
+
+  return 0;
+}
+#endif
