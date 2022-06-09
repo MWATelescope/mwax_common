@@ -10,7 +10,7 @@ char * mwax_cuda_get_device_name (int index);
 
 int mwax_array_weight_complex(float* weights, float* output, unsigned rows, unsigned columns, cudaStream_t stream);
 int mwax_fast_complex_multiply(float* input, float* output, unsigned size, cudaStream_t stream);
-int mwax_lookup_all_delay_gains(int16_t* delays, cuFloatComplex* delay_lut, cuFloatComplex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts, cudaStream_t stream);
+int mwax_lookup_all_delay_gains(int16_t* delays, float complex* delay_lut, float complex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts, cudaStream_t stream);
 
 
 int mwax_transpose_to_xGPU(float complex* input, float complex* output, unsigned rows, unsigned columns, cudaStream_t stream);
