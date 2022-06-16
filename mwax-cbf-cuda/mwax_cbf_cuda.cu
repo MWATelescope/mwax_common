@@ -150,7 +150,10 @@ __global__ void mwax_lookup_all_delay_gains_kernel(const int16_t* delays, const 
   for (i=0; i<num_ffts; i++)
   {
     delay_val = (int)delays[threadIdx.x + i*paths];   // fetch the requested delay value for this path and FFT
-    if ((delay_val < -MAX_DELAY) || (delay_val > MAX_DELAY)) delay_val = 0;    // range check - set to zero if out of range
+
+    // don't need to range check - it's now done whilst populating the delay table
+    // if ((delay_val < -MAX_DELAY) || (delay_val > MAX_DELAY)) delay_val = 0;    // range check - set to zero if out of range
+    
     // retrieve the corresponding complex gain value from the LUT for this frequency bin
     // - first form the address for the LUT - based on the requested delay and the index through the phase gradient in the LUT
     delay_idx = (delay_val + MAX_DELAY)*fft_length + blockIdx.x;  // add MAX_DELAY to get range 0 -> 2*MAX_DELAY
@@ -221,109 +224,6 @@ int mwax_transpose_to_xGPU_and_weight(float* weights, float* input, float* outpu
 
   return 0;
 }
-
-
-
-__global__ void detranspose_from_xGPU_kernel(const cuFloatComplex* input, cuFloatComplex* output, unsigned rows, unsigned columns)
-{
-  // blockIdx.x is row (input freq and time)
-  // threadIdx.x is column (input antenna)
-
-  output[blockIdx.x + (threadIdx.x * rows)] = input[(blockIdx.x * columns) + threadIdx.x];
-
-  return;
-}
-
-extern "C"
-int mwax_detranspose_from_xGPU(cuFloatComplex* input, cuFloatComplex* output, unsigned rows, unsigned columns, cudaStream_t stream)
-{
-  int nblocks = (int)rows;     // frequencies and time
-  int nthreads = (int)columns; // signal paths
-
-  detranspose_from_xGPU_kernel<<<nblocks,nthreads,0,stream>>>(input,output,rows,columns);
-
-  return 0;
-}
-
-
-
-__global__ void detranspose_from_xGPU_and_weight_kernel(const float* weights, const float* input, float* output, unsigned rows, unsigned columns)
-{
-  // blockIdx.x is row (input freq and time)
-  // threadIdx.x is column (input antenna)
-  float weight = weights[threadIdx.x];
-  int idx_read = 2*(blockIdx.x*columns + threadIdx.x);
-  int idx_write = 2*(threadIdx.x*rows + blockIdx.x);
-
-  output[idx_write] = input[idx_read]*weight;
-  output[idx_write+1] = input[idx_read+1]*weight;
-
-  return;
-}
-
-extern "C"
-int mwax_detranspose_from_xGPU_and_weight(float* weights, float* input, float* output, unsigned rows, unsigned columns, cudaStream_t stream)
-{
-  int nblocks = (int)rows;     // frequencies and time
-  int nthreads = (int)columns; // signal paths
-  detranspose_from_xGPU_and_weight_kernel<<<nblocks,nthreads,0,stream>>>(weights,input,output,rows,columns);
-
-  return 0;
-}
-
-
-
-
-#if 1
-// FAST VERSION - nthreads=128
-__global__ void xGPU_channel_average_kernel(const float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned num_output_channels, unsigned fscrunch_factor)
-{
-  // blockDim threads per block: each thread sums all values (real or imag floats) for one output channel
-  // blockIdx.x is a chunk of visibility columns (total columns = num_visibility_samps_per_chan)
-  // threadIdx.x is index within a block
-  int read_idx = blockIdx.x * blockDim.x + threadIdx.x;  // column index
-  int write_idx = read_idx;
-  float tempSum;
-  int j,k;
-  for (j=0; j<num_output_channels; j++)
-  {
-    tempSum = input[read_idx];  // first row of this channel
-    read_idx += num_visibility_samps_per_chan;  // advance to next row
-    for (k=1; k<fscrunch_factor; k++)  // sum remaining rows
-    {
-      tempSum += input[read_idx];  // sum in this row
-      read_idx += num_visibility_samps_per_chan;  // advance to next row
-    }
-    output[write_idx] = tempSum;  // channel summed - write to this row
-    write_idx += num_visibility_samps_per_chan;  // advance to next output row
-  }
-  return;
-}
-
-extern "C"
-int xGPU_channel_average(float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned num_input_channels, unsigned fscrunch_factor, cudaStream_t stream)
-{
-  if (num_visibility_samps_per_chan % 64)
-  {
-    printf("xGPU_channel_average: ERROR: number of visibility samples (real or imag) per channel should always be divisible by 64\n");
-    return -1;
-  }
-
-  if (num_input_channels % fscrunch_factor)
-  {
-    printf("xGPU_channel_average: ERROR: number of input channels not an integer multiple of averaging factor\n");
-    return -1;
-  }
-
-  int nthreads = 64;  // all blocks will be 64 threads in size
-  int nblocks = (int)num_visibility_samps_per_chan/nthreads;
-  unsigned num_output_channels = num_input_channels/fscrunch_factor;
-
-  xGPU_channel_average_kernel<<<nblocks,nthreads,0,stream>>>(input,output,num_visibility_samps_per_chan,num_output_channels,fscrunch_factor);
-
-  return 0;
-}
-#endif
 
 
 
@@ -1192,6 +1092,105 @@ int mwax_lookup_and_apply_delay_gains(int32_t* delays, float* delay_lut, float* 
   return 0;
 }
 
+
+
+__global__ void detranspose_from_xGPU_kernel(const cuFloatComplex* input, cuFloatComplex* output, unsigned rows, unsigned columns)
+{
+  // blockIdx.x is row (input freq and time)
+  // threadIdx.x is column (input antenna)
+
+  output[blockIdx.x + (threadIdx.x * rows)] = input[(blockIdx.x * columns) + threadIdx.x];
+
+  return;
+}
+
+extern "C"
+int mwax_detranspose_from_xGPU(cuFloatComplex* input, cuFloatComplex* output, unsigned rows, unsigned columns, cudaStream_t stream)
+{
+  int nblocks = (int)rows;     // frequencies and time
+  int nthreads = (int)columns; // signal paths
+
+  detranspose_from_xGPU_kernel<<<nblocks,nthreads,0,stream>>>(input,output,rows,columns);
+
+  return 0;
+}
+
+
+
+__global__ void detranspose_from_xGPU_and_weight_kernel(const float* weights, const float* input, float* output, unsigned rows, unsigned columns)
+{
+  // blockIdx.x is row (input freq and time)
+  // threadIdx.x is column (input antenna)
+  float weight = weights[threadIdx.x];
+  int idx_read = 2*(blockIdx.x*columns + threadIdx.x);
+  int idx_write = 2*(threadIdx.x*rows + blockIdx.x);
+
+  output[idx_write] = input[idx_read]*weight;
+  output[idx_write+1] = input[idx_read+1]*weight;
+
+  return;
+}
+
+extern "C"
+int mwax_detranspose_from_xGPU_and_weight(float* weights, float* input, float* output, unsigned rows, unsigned columns, cudaStream_t stream)
+{
+  int nblocks = (int)rows;     // frequencies and time
+  int nthreads = (int)columns; // signal paths
+  detranspose_from_xGPU_and_weight_kernel<<<nblocks,nthreads,0,stream>>>(weights,input,output,rows,columns);
+
+  return 0;
+}
+
+
+
+// FAST VERSION - nthreads=128
+__global__ void xGPU_channel_average_kernel(const float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned num_output_channels, unsigned fscrunch_factor)
+{
+  // blockDim threads per block: each thread sums all values (real or imag floats) for one output channel
+  // blockIdx.x is a chunk of visibility columns (total columns = num_visibility_samps_per_chan)
+  // threadIdx.x is index within a block
+  int read_idx = blockIdx.x * blockDim.x + threadIdx.x;  // column index
+  int write_idx = read_idx;
+  float tempSum;
+  int j,k;
+  for (j=0; j<num_output_channels; j++)
+  {
+    tempSum = input[read_idx];  // first row of this channel
+    read_idx += num_visibility_samps_per_chan;  // advance to next row
+    for (k=1; k<fscrunch_factor; k++)  // sum remaining rows
+    {
+      tempSum += input[read_idx];  // sum in this row
+      read_idx += num_visibility_samps_per_chan;  // advance to next row
+    }
+    output[write_idx] = tempSum;  // channel summed - write to this row
+    write_idx += num_visibility_samps_per_chan;  // advance to next output row
+  }
+  return;
+}
+
+extern "C"
+int xGPU_channel_average(float* input, float* output, unsigned num_visibility_samps_per_chan, unsigned num_input_channels, unsigned fscrunch_factor, cudaStream_t stream)
+{
+  if (num_visibility_samps_per_chan % 64)
+  {
+    printf("xGPU_channel_average: ERROR: number of visibility samples (real or imag) per channel should always be divisible by 64\n");
+    return -1;
+  }
+
+  if (num_input_channels % fscrunch_factor)
+  {
+    printf("xGPU_channel_average: ERROR: number of input channels not an integer multiple of averaging factor\n");
+    return -1;
+  }
+
+  int nthreads = 64;  // all blocks will be 64 threads in size
+  int nblocks = (int)num_visibility_samps_per_chan/nthreads;
+  unsigned num_output_channels = num_input_channels/fscrunch_factor;
+
+  xGPU_channel_average_kernel<<<nblocks,nthreads,0,stream>>>(input,output,num_visibility_samps_per_chan,num_output_channels,fscrunch_factor);
+
+  return 0;
+}
 
 
 
