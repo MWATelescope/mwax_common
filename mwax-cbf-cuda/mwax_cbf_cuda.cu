@@ -177,7 +177,7 @@ int mwax_lookup_all_delay_gains(int16_t* delays, cuFloatComplex* delay_lut, cuFl
 
 
 
-__global__ void mwax_lookup_deripple_gains_kernel(const int32_t* delays, const cuFloatComplex* delay_lut, cuFloatComplex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts)
+__global__ void mwax_lookup_deripple_gains_kernel(const cuFloatComplex* delay_lut, cuFloatComplex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts)
 // Used for performing coarse-channeliser de-ripple, when path delays are not to be applied.
 // Assembles the complex float 2D array of delay_gains taken from the delay_lut, where the delays are all zero,
 //    for all the FFTs of one data block, which is of size [paths * (fft_length*num_ffts_per_block)]
