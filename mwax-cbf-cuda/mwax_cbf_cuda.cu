@@ -131,7 +131,7 @@ int mwax_fast_complex_multiply(float* input, float* output, unsigned size, cudaS
 #define MAX_DELAY ((NUM_DELAYS-1)/2)
 
 __global__ void mwax_lookup_all_delay_gains_kernel(const int16_t* delays, const cuFloatComplex* delay_lut, cuFloatComplex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts)
-// Assembles the complex float 2D array of delay_gains taken from the delay_lut, indexed with delays
+// Assembles the complex float 2D array of delay_gains taken from the delay_lut, indexed with delays,
 //    for all the FFTs of one data block, which is of size [paths * (fft_length*num_ffts_per_block)]
 // - this version assumes there is a full set of delays, i.e. individual values for every FFT of each signal path
 // - it assumes the delays for the current data block start at the address passed to the function, i.e. "delays"
@@ -153,7 +153,7 @@ __global__ void mwax_lookup_all_delay_gains_kernel(const int16_t* delays, const 
 
     // don't need to range check - it's now done whilst populating the delay table
     // if ((delay_val < -MAX_DELAY) || (delay_val > MAX_DELAY)) delay_val = 0;    // range check - set to zero if out of range
-    
+
     // retrieve the corresponding complex gain value from the LUT for this frequency bin
     // - first form the address for the LUT - based on the requested delay and the index through the phase gradient in the LUT
     delay_idx = (delay_val + MAX_DELAY)*fft_length + blockIdx.x;  // add MAX_DELAY to get range 0 -> 2*MAX_DELAY
@@ -171,6 +171,46 @@ int mwax_lookup_all_delay_gains(int16_t* delays, cuFloatComplex* delay_lut, cuFl
   int nblocks = (int)fft_length;
   int nthreads = (int)paths;
   mwax_lookup_all_delay_gains_kernel<<<nblocks,nthreads,0,stream>>>(delays,delay_lut,delay_gains,paths,fft_length,num_ffts);
+
+  return 0;
+}
+
+
+
+__global__ void mwax_lookup_deripple_gains_kernel(const int32_t* delays, const cuFloatComplex* delay_lut, cuFloatComplex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts)
+// Used for performing coarse-channeliser de-ripple, when path delays are not to be applied.
+// Assembles the complex float 2D array of delay_gains taken from the delay_lut, where the delays are all zero,
+//    for all the FFTs of one data block, which is of size [paths * (fft_length*num_ffts_per_block)]
+// Each thread handles a single signal path and all the FFTs of a data block, with a different CUDA block for each frequency bin of the FFT.
+{
+  // blockIdx.x is FFT ordinate (frequency bin)
+  // threadIdx.x is row (input path)
+  // loop through all FFTs in the data block
+  int i;
+  int delay_idx;
+  cuFloatComplex delay_gain;
+  int row_length = fft_length*num_ffts;
+  int gains_idx;
+
+  for (i=0; i<num_ffts; i++)
+  {
+    // retrieve the complex gain value from the LUT for this frequency bin
+    // - first form the address for the LUT - based on zero delay and the index through the phase gradient in the LUT
+    delay_idx = MAX_DELAY*fft_length + blockIdx.x;  // MAX_DELAY is the centre (zero) delay case because the range is 0 -> 2*MAX_DELAY
+    delay_gain = delay_lut[delay_idx];    // look up the value
+    // form the output index for this frequency bin, FFT and path. Each path row is of length (fft_length*num_ffts)
+    gains_idx = (threadIdx.x*row_length) + i*fft_length + blockIdx.x;
+    delay_gains[gains_idx] = delay_gain;   // write the complex gain to the the delay_gains array
+  }
+  return;
+}
+
+extern "C"
+int mwax_lookup_deripple_gains(cuFloatComplex* delay_lut, cuFloatComplex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts, cudaStream_t stream)
+{
+  int nblocks = (int)fft_length;
+  int nthreads = (int)paths;
+  mwax_lookup_deripple_gains_kernel<<<nblocks,nthreads,0,stream>>>(delay_lut,delay_gains,paths,fft_length,num_ffts);
 
   return 0;
 }
