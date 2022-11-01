@@ -127,7 +127,7 @@ int mwax_fast_complex_multiply(float* input, float* output, unsigned size, cudaS
 
 
 
-#define NUM_DELAYS 4001  // zero delay case and +- 2000 millisamples
+#define NUM_DELAYS 2001  // zero delay case and +- 1000 millisamples
 #define MAX_DELAY ((NUM_DELAYS-1)/2)
 
 __global__ void mwax_lookup_all_delay_gains_kernel(const int16_t* delays, const cuFloatComplex* delay_lut, cuFloatComplex* delay_gains, unsigned paths, unsigned fft_length, unsigned num_ffts)
@@ -214,6 +214,46 @@ int mwax_lookup_deripple_gains(cuFloatComplex* delay_lut, cuFloatComplex* delay_
 
   return 0;
 }
+
+
+
+
+__global__ void mwax_assemble_all_phase_gains_kernel(const cuFloatComplex* path_phase_gains, cuFloatComplex* phase_gains, unsigned paths, unsigned fft_length, unsigned num_ffts)
+// Assembles the complex float 2D array of phase_gains, indexed with path_phase_gains,
+//    for all the FFTs of one data block, which is of size [paths * (fft_length*num_ffts_per_block)]
+// - this version assumes there is a full set of path_phase_gains, i.e. individual values for every FFT of each signal path
+// - it assumes the path_phase_gains for the current data block start at the address passed to the function, i.e. "path_phase_gains"
+// Each thread handles a single signal path and all the FFTs of a data block, with a different CUDA block for each frequency bin of the FFT.
+{
+  // blockIdx.x is FFT ordinate (frequency bin)
+  // threadIdx.x is row (input path)
+  // loop through all FFTs in the data block
+  int i;
+  cuFloatComplex phase_gain;
+  int row_length = fft_length*num_ffts;
+  int gains_idx;
+
+  for (i=0; i<num_ffts; i++)
+  {
+    phase_gain = (cuFloatComplex)path_phase_gains[threadIdx.x + i*paths];   // fetch the requested path_phase_gain value for this path and FFT
+    // this complex gain value is to be applied to all frequency bins
+    // form the output index for this frequency bin, FFT and path. Each path row is of length (fft_length*num_ffts)
+    gains_idx = (threadIdx.x*row_length) + i*fft_length + blockIdx.x;
+    phase_gains[gains_idx] = phase_gain;   // write the complex gain to the the phase_gains array
+  }
+  return;
+}
+
+extern "C"
+int mwax_assemble_all_phase_gains(cuFloatComplex* path_phase_gains, cuFloatComplex* phase_gains, unsigned paths, unsigned fft_length, unsigned num_ffts, cudaStream_t stream);
+{
+  int nblocks = (int)fft_length;
+  int nthreads = (int)paths;
+  mwax_assemble_all_phase_gains_kernel<<<nblocks,nthreads,0,stream>>>(path_phase_gains,phase_gains,paths,fft_length,num_ffts);
+
+  return 0;
+}
+
 
 
 
