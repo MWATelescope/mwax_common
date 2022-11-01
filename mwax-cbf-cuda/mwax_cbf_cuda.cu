@@ -245,7 +245,7 @@ __global__ void mwax_assemble_all_phase_gains_kernel(const cuFloatComplex* path_
 }
 
 extern "C"
-int mwax_assemble_all_phase_gains(cuFloatComplex* path_phase_gains, cuFloatComplex* phase_gains, unsigned paths, unsigned fft_length, unsigned num_ffts, cudaStream_t stream);
+int mwax_assemble_all_phase_gains(cuFloatComplex* path_phase_gains, cuFloatComplex* phase_gains, unsigned paths, unsigned fft_length, unsigned num_ffts, cudaStream_t stream)
 {
   int nblocks = (int)fft_length;
   int nthreads = (int)paths;
