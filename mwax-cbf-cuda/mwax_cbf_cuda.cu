@@ -257,6 +257,46 @@ int mwax_assemble_all_phase_gains(cuFloatComplex* path_phase_gains, cuFloatCompl
 
 
 
+__global__ void mwax_discard_oversampled_spectral_portions_kernel(const cuFloatComplex* input, cuFloatComplex* output, int num_input_channels, int num_output_channels, int num_ffts, int half_discard)
+// Converts oversampled spectral data to critically sampled by discarding the oversampled
+// spactral portions on each side of the spectrum.
+// Processes all the FFTs of one data block, which is of size [paths * (num_input_channels*num_ffts_per_block)]
+// Each thread handles a single signal path and all the FFTs of a data block, with a different CUDA block for each frequency bin of the input spectral data.
+{
+  // blockIdx.x is FFT ordinate (frequency bin) of the input spectra
+  // threadIdx.x is row (input path)
+  // loop through all FFTs in the data block
+  int i;
+  int input_row_length = num_input_channels*num_ffts;
+  int output_row_length = num_output_channels*num_ffts;
+
+  // only samples in the following range are retained, others ignored
+  bool retained = (blockIdx.x >= half_discard) && (blockIdx.x < (num_input_channels - half_discard));
+
+  for (i=0; i<num_ffts; i++)
+  {
+    if (retained)
+    {
+      output[(blockIdx.x - half_discard) + (i*num_output_channels) + (threadIdx.x * output_row_length)] = input[blockIdx.x + (i*num_input_channels) + (threadIdx.x * input_row_length)];
+    }
+  }
+  return;
+}
+
+extern "C"
+int mwax_discard_oversampled_spectral_portions(cuFloatComplex* input, cuFloatComplex* output, int paths, int num_input_channels, int num_output_channels, int num_ffts, cudaStream_t stream)
+{
+  int nblocks = num_input_channels;
+  int nthreads = paths;
+  int half_discard = (num_input_channels - num_output_channels)/2;  // assumed tested already to be even in calling code
+
+  mwax_discard_oversampled_spectral_portions_kernel<<<nblocks,nthreads,0,stream>>>(input,output,num_input_channels,num_output_channels,num_ffts,half_discard);
+
+  return 0;
+}
+
+
+
 
 __global__ void transpose_to_xGPU_kernel(const cuFloatComplex* input, cuFloatComplex* output, unsigned rows, unsigned columns)
 {
