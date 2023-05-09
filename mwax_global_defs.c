@@ -80,7 +80,7 @@ int is_mwax_mode_vcs(const char *mode)
     return strcmp(mode, MWAX_MODE_V1_VOLTAGE_CAPTURE) == 0 ||
            strcmp(mode, MWAX_MODE_V1_VOLTAGE_BUFFER) == 0 ||
            strcmp(mode, MWAX_MODE_V2_VOLTAGE_CAPTURE) == 0 ||
-           strcmp(mode, MWAX_MODE_V2_VOLTAGE_BUFFER);
+           strcmp(mode, MWAX_MODE_V2_VOLTAGE_BUFFER) == 0;
 }
 
 /**
