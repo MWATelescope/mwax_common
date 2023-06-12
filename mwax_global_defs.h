@@ -32,6 +32,7 @@ int is_mwax_mode_quit(const char *mode);
 #define HEADER_APPLY_PATH_WEIGHTS "APPLY_PATH_WEIGHTS"              // Apply path weights prior to xGPU correlation?
 #define HEADER_APPLY_PATH_DELAYS "APPLY_PATH_DELAYS"                // Apply path delays prior to xGPU correlation?
 #define HEADER_APPLY_PATH_PHASE_OFFSETS "APPLY_PATH_PHASE_OFFSETS"  // Apply path phase offsets prior to xGPU correlation?
+#define HEADER_APPLY_COARSE_DERIPPLE "APPLY_COARSE_DERIPPLE"        // Apply coarse channelisaer de-ripple prior to xGPU correlation?
 #define HEADER_INT_TIME_MSEC "INT_TIME_MSEC"                        // Correlator mode: integrations every x milliseconds
 #define HEADER_FSCRUNCH_FACTOR "FSCRUNCH_FACTOR"                    // How many 125 Hz ultra fine channels do we average together
 #define HEADER_RAW_SCALE_FACTOR "RAW_SCALE_FACTOR"                  // Absolute scaling factor for output visibilities
