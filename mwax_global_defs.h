@@ -15,6 +15,13 @@ int is_mwax_mode_vcs(const char *mode);
 int is_mwax_mode_no_capture(const char *mode);
 int is_mwax_mode_quit(const char *mode);
 
+
+//
+// Defined parameters (not currently selectable by the user)
+//
+#define CORRELATOR_NFFTS 10                                         // Each subfile block of NTIMESAMPLES samples is processed with NFFTS FFTs
+#define BEAMFORMER_NFFTS 10
+
 //
 // Correlator keywords within the PSRDADA Header
 //
