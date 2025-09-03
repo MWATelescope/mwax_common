@@ -19,9 +19,9 @@ int is_mwax_mode_quit(const char *mode);
 //
 // Defined parameters (not currently selectable by the user)
 //
-#define CORRELATOR_NFFTS 10                                         // Each subfile block of NTIMESAMPLES samples is processed with NFFTS FFTs
-#define BEAMFORMER_NFFTS 10
-
+#define CORRELATOR_NFFTS            10                              // Each subfile block of NTIMESAMPLES samples is processed with NFFTS FFTs
+#define BEAMFORMER_COHERENT_NFFTS   10
+#define BEAMFORMER_INCOHERENT_NFFTS 500
 //
 // Correlator keywords within the PSRDADA Header
 //
