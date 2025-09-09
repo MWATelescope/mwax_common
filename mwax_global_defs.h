@@ -32,6 +32,7 @@ int is_mwax_mode_quit(const char *mode);
 #define HEADER_POPULATED "POPULATED"                                // 0=header being assembled; 1=header is ready for reading
 #define HEADER_OBS_ID "OBS_ID"                                      // Observation ID (GPS start time of obs)
 #define HEADER_SUBOBS_ID "SUBOBS_ID"                                // GPS start time of this 8 second sub observation
+#define HEADER_MJD_SECONDS_START "MJD_SECONDS_START"                // MJD integer seconds of the start time of the observation
 #define HEADER_MODE "MODE"                                          // Telescope mode: HW_LFILES, VOLTAGE_START, NO_CAPTURE, QUIT
 #define HEADER_UTC_START "UTC_START"                                // UTC start time of observation (string)
 #define HEADER_OBS_OFFSET "OBS_OFFSET"                              // Seconds since start of observation; e.g. 0,8,16,etc
