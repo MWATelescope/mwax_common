@@ -9,6 +9,12 @@
 //#ifndef MWAX_GLOBAL_DEFS_H_INCLUDED // This prevents linker errors due to multiple translation units using this
 //#define MWAX_GLOBAL_DEFS_H_INCLUDED
 
+//
+// MWA station ID, for use in VDIF headers or elsewhere
+//
+#define MWA_STATION_ID "MW"
+
+
 int is_mwax_mode_valid(const char *mode);
 int is_mwax_mode_correlator(const char *mode);
 int is_mwax_mode_vcs(const char *mode);
