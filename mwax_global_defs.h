@@ -78,11 +78,11 @@ int is_mwax_mode_quit(const char *mode);
 //
 // Beamformer keywords within the PSRDADA Header
 //
-#define INCOHERENT_BEAMS_MAX 10                             // Max number of incoherent beams we support
-#define HEADER_NUM_INCOHERENT_BEAMS "NUM_INCOHERENT_BEAMS"  // Number of incoherent beams to form
+#define INCOHERENT_BEAMS_MAX 10                          // Max number of incoherent beams we support
+#define HEADER_NINCOHERENT_BEAMS "NINCOHERENT_BEAMS"     // Number of incoherent beams to form
 
-#define COHERENT_BEAMS_MAX 10                               // Max number of coherent beams we support
-#define HEADER_NUM_COHERENT_BEAMS "NUM_COHERENT_BEAMS"      // Number of coherent beams to form
+#define COHERENT_BEAMS_MAX 10                            // Max number of coherent beams we support
+#define HEADER_NCOHERENT_BEAMS "NCOHERENT_BEAMS"         // Number of coherent beams to form
 
 #define HEADER_INCOHERENT_BEAM_01_CHANNELS "INCOHERENT_BEAM_01_CHANNELS"  // Specifies the channelisation FFT length for a requested beam
 #define HEADER_INCOHERENT_BEAM_02_CHANNELS "INCOHERENT_BEAM_02_CHANNELS"  // (defaults to channels=1 if keyword not present for a requested beam)
